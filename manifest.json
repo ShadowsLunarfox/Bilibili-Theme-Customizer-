@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
   "name": "哔哩哔哩主题 / Bilibili Theme",
-  "version": "2.3.5",
+  "version": "2.6.0",
   "minimum_chrome_version": "114",
   "description": "自定义哔哩哔哩背景和玻璃效果。Customize Bilibili backgrounds and glass effects.",
-  "permissions": ["storage"],
+  "permissions": ["storage", "unlimitedStorage"],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "settings.js"
   },
   "action": {
     "default_title": "哔哩哔哩主题 / Bilibili Theme",

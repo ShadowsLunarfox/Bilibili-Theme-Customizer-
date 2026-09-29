@@ -6,6 +6,14 @@
   const root = document.documentElement;
   const client = BC.createClient();
   const fallback = "linear-gradient(135deg, #101927, #1c263a 48%, #102c35)";
+  const navigationHideRules = BC.NAV_ITEMS.map((entry) =>
+    `html[data-bc-enabled="true"][data-bc-hidden~="${entry.key}"] body :is(${entry.selector}) { display: none !important; }`
+  ).join("\n");
+  const channelGroups = [
+    { token: "icons", key: "channelIcons" },
+    { token: "categories", key: "channelCategories" },
+    { token: "shortcuts", key: "channelShortcuts" }
+  ].map(({ token, key }) => ({ token, items: BC.NAV_GROUPS.find((group) => group.key === key).items }));
   const style = document.createElement("style");
   style.dataset.bcOwned = "style";
   style.textContent = `
@@ -17,14 +25,14 @@
     }
     /* Override Bilibili's separate title, metadata, link and inline text colors. */
     html[data-bc-enabled="true"][data-bc-coverage] body :where(*):not([data-bc-owned]) {
-      color: #fff !important;
-      -webkit-text-fill-color: #fff !important;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, .8) !important;
+      color: var(--bc-text-color) !important;
+      -webkit-text-fill-color: var(--bc-text-color) !important;
+      text-shadow: var(--bc-text-shadow) !important;
     }
     html[data-bc-enabled="true"][data-bc-coverage] body :where(*):not([data-bc-owned])::before,
     html[data-bc-enabled="true"][data-bc-coverage] body :where(*):not([data-bc-owned])::after {
-      color: #fff !important;
-      -webkit-text-fill-color: #fff !important;
+      color: var(--bc-text-color) !important;
+      -webkit-text-fill-color: var(--bc-text-color) !important;
     }
     html[data-bc-enabled="true"] #bc-theme-wallpaper {
       all: initial !important;
@@ -73,11 +81,42 @@
     html[data-bc-enabled="true"][data-bc-coverage] body :is(
       .bili-header__channel, .bili-video-card__info, .video-card__info,
       .video-page-card-small, .video-page-operator-card, .bili-dyn-item,
-      .video-toolbar, .up-info-container, .media-info, .bangumi-info,
+      .video-toolbar, .up-info-container, .user-card-m-exp,
+      .video-pod, .media-info, .bangumi-info,
       .nav-search-content, .article-container, .opus-module-content,
       .floor-single-card
     ) {
       background-color: rgba(8, 14, 24, var(--bc-surface-alpha)) !important;
+      -webkit-backdrop-filter: blur(var(--bc-blur)) !important;
+      backdrop-filter: blur(var(--bc-blur)) !important;
+    }
+    /* Space pages use their own layout containers. Blur each section once while
+       keeping cover art, video thumbnails and text inside the pane sharp. */
+    html[data-bc-enabled="true"][data-bc-coverage] body :is(
+      .space-header .upinfo, .space-navbar,
+      .space-main .section-wrap, .space-main .home-aside-section,
+      .space-main .space-dynamic-inner, .space-main .dynamic-aside-section,
+      .space-main .space-dynamic__left .side-nav,
+      .space-main .upload-sidenav .side-nav, .space-main .upload-content,
+      .space-main .subscribe-sidebar .side-nav, .space-main .subscribe-content,
+      .space-main .space-lists, .space-main .relation-aside,
+      .space-main .follow-main
+    ) {
+      background-color: rgba(8, 14, 24, var(--bc-surface-alpha)) !important;
+      -webkit-backdrop-filter: blur(var(--bc-blur)) !important;
+      backdrop-filter: blur(var(--bc-blur)) !important;
+    }
+    html[data-bc-enabled="true"][data-bc-coverage] body .space-main :is(
+      .bili-video-card__info, .video-card__info, .bili-dyn-item
+    ) {
+      background-color: transparent !important;
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+    }
+    /* The space page login prompt paints an opaque blue gradient. */
+    html[data-bc-enabled="true"][data-bc-coverage] body:has(.space-navbar) .login-tip {
+      background-color: rgba(8, 14, 24, var(--bc-surface-alpha)) !important;
+      background-image: none !important;
       -webkit-backdrop-filter: blur(var(--bc-blur)) !important;
       backdrop-filter: blur(var(--bc-blur)) !important;
     }
@@ -127,8 +166,8 @@
       input[type="password"], input[type="email"], input[type="number"],
       textarea, select, [contenteditable="true"]
     ) {
-      background-color: rgba(8, 14, 24, .82) !important;
-      caret-color: #fff !important;
+      background-color: var(--bc-input-bg) !important;
+      caret-color: var(--bc-text-color) !important;
     }
     html[data-bc-enabled="true"][data-bc-coverage] body :is(
       .video-desc-container, #v_desc, .video-desc, .video-desc-v1,
@@ -136,12 +175,13 @@
       .comment-container, #commentapp, #comment, bili-comments,
       .reply-warp, .reply-container
     ) :is(input, textarea, select, [contenteditable="true"]) {
-      background-color: rgba(8, 14, 24, .82) !important;
-      caret-color: #fff !important;
+      background-color: var(--bc-input-bg) !important;
+      caret-color: var(--bc-text-color) !important;
     }
     html[data-bc-enabled="true"][data-bc-coverage] body :is(input, textarea)::placeholder {
-      color: rgba(255, 255, 255, .75) !important;
-      -webkit-text-fill-color: rgba(255, 255, 255, .75) !important;
+      color: var(--bc-text-color) !important;
+      -webkit-text-fill-color: var(--bc-text-color) !important;
+      opacity: .75 !important;
     }
     /* Keep the bar's blur on a sibling layer so its descendant hover panels
        can sample the page behind the header instead of stopping at the bar. */
@@ -255,26 +295,26 @@
       .bili-dialog__content, .bili-popup__content,
       .ant-modal-content, .el-dialog
     ) :is(input, textarea, select, [contenteditable="true"]) {
-      background-color: rgba(8, 14, 24, .82) !important;
+      background-color: var(--bc-input-bg) !important;
     }
     html[data-bc-enabled="true"][data-bc-coverage] body :is(
       input:-webkit-autofill, input:-webkit-autofill:hover,
       input:-webkit-autofill:focus
     ) {
-      -webkit-box-shadow: 0 0 0 1000px rgba(8, 14, 24, .9) inset !important;
-      box-shadow: 0 0 0 1000px rgba(8, 14, 24, .9) inset !important;
-      -webkit-text-fill-color: #fff !important;
+      -webkit-box-shadow: 0 0 0 1000px var(--bc-input-bg) inset !important;
+      box-shadow: 0 0 0 1000px var(--bc-input-bg) inset !important;
+      -webkit-text-fill-color: var(--bc-text-color) !important;
     }
     html[data-bc-enabled="true"][data-bc-coverage] body .bili-mini-content-wp input {
-      -webkit-box-shadow: 0 0 0 1000px rgba(8, 14, 24, .9) inset !important;
-      box-shadow: 0 0 0 1000px rgba(8, 14, 24, .9) inset !important;
+      -webkit-box-shadow: 0 0 0 1000px var(--bc-input-bg) inset !important;
+      box-shadow: 0 0 0 1000px var(--bc-input-bg) inset !important;
     }
     html[data-bc-enabled="true"][data-bc-coverage] body bili-comments {
       display: block !important;
     }
     html[data-bc-enabled="true"] .bili-header__bar :is(.left-entry, .right-entry) > li > a,
     html[data-bc-enabled="true"] .bili-header__bar :is(.left-entry, .right-entry) > li > a > span {
-      color: #fff !important;
+      color: var(--bc-text-color) !important;
     }
     html[data-bc-enabled="true"][data-bc-coverage] body :is(
       .bili-header__channel a:hover, .bili-video-card__info--tit a:hover
@@ -282,11 +322,36 @@
       color: var(--bc-accent) !important;
       -webkit-text-fill-color: var(--bc-accent) !important;
     }
+    /* The shared navigation catalog gives every visible entry its own switch. */
+    ${navigationHideRules}
+    /* Remove each empty group and the entire channel row when nothing is left. */
+    html[data-bc-enabled="true"][data-bc-channel-layout~="icons"] body :is(
+      .bili-header__channel .channel-icons, .header-channel .header-channel-fixed-left
+    ),
+    html[data-bc-enabled="true"][data-bc-channel-layout~="categories"] body :is(
+      .bili-header__channel .channel-items__left,
+      .header-channel .header-channel-fixed-list,
+      .header-channel .header-channel-fixed-bottom-list,
+      .header-channel .header-channel-fixed-arrow
+    ),
+    html[data-bc-enabled="true"][data-bc-channel-layout~="shortcuts"] body :is(
+      .bili-header__channel .channel-items__right,
+      .header-channel .header-channel-fixed-side-list
+    ),
+    html[data-bc-enabled="true"][data-bc-channel-layout~="all"] body :is(
+      .bili-header__channel, .header-channel
+    ) { display: none !important; }
+    html[data-bc-enabled="true"][data-bc-channel-layout~="shortcuts"] body
+    .bili-header__channel .channel-items__left { margin-right: 0 !important; }
+    html[data-bc-enabled="true"][data-bc-channel-layout~="shortcuts"] body
+    .header-channel .header-channel-fixed-list { grid-column: 1 / -1 !important; }
+    html[data-bc-enabled="true"][data-bc-channel-layout~="categories"] body
+    .header-channel .header-channel-fixed-side-list { grid-column: 1 / -1 !important; }
   `;
   const shadowStyleText = `
     :host {
-      color: #fff !important;
-      -webkit-text-fill-color: #fff !important;
+      color: var(--bc-text-color) !important;
+      -webkit-text-fill-color: var(--bc-text-color) !important;
       background-color: transparent !important;
       -webkit-backdrop-filter: none !important;
       backdrop-filter: none !important;
@@ -298,16 +363,16 @@
     }
     :is(*, #bc-theme-shadow-content) {
       background-color: transparent !important;
-      color: #fff !important;
-      -webkit-text-fill-color: #fff !important;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, .8) !important;
+      color: var(--bc-text-color) !important;
+      -webkit-text-fill-color: var(--bc-text-color) !important;
+      text-shadow: var(--bc-text-shadow) !important;
       -webkit-backdrop-filter: none !important;
       backdrop-filter: none !important;
     }
     :is(*, #bc-theme-shadow-content)::before,
     :is(*, #bc-theme-shadow-content)::after {
-      color: #fff !important;
-      -webkit-text-fill-color: #fff !important;
+      color: var(--bc-text-color) !important;
+      -webkit-text-fill-color: var(--bc-text-color) !important;
     }
     /* The limited-comment mask paints a full-width white gradient in pseudo elements. */
     #limit-mask-wall::before {
@@ -320,18 +385,29 @@
       background-image: none !important;
     }
     :is(input, textarea, [contenteditable], #bc-theme-shadow-input) {
-      background-color: rgba(8, 14, 24, .82) !important;
-      caret-color: #fff !important;
+      background-color: var(--bc-input-bg) !important;
+      caret-color: var(--bc-text-color) !important;
     }
     :is(input, textarea)::placeholder {
-      color: rgba(255, 255, 255, .75) !important;
-      -webkit-text-fill-color: rgba(255, 255, 255, .75) !important;
+      color: var(--bc-text-color) !important;
+      -webkit-text-fill-color: var(--bc-text-color) !important;
+      opacity: .75 !important;
     }
   `;
   const wallpaper = document.createElement("div");
   wallpaper.id = "bc-theme-wallpaper";
   wallpaper.dataset.bcOwned = "wallpaper";
   wallpaper.setAttribute("aria-hidden", "true");
+  const wallpaperVideo = document.createElement("video");
+  wallpaperVideo.id = "bc-theme-video";
+  wallpaperVideo.dataset.bcOwned = "video";
+  wallpaperVideo.setAttribute("aria-hidden", "true");
+  wallpaperVideo.autoplay = true;
+  wallpaperVideo.loop = true;
+  wallpaperVideo.muted = true;
+  wallpaperVideo.playsInline = true;
+  wallpaperVideo.style.cssText = "display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none";
+  wallpaper.attachShadow({ mode: "closed" }).append(wallpaperVideo);
   const headerGlass = document.createElement("div");
   headerGlass.id = "bc-theme-header-glass";
   headerGlass.dataset.bcOwned = "header-glass";
@@ -357,12 +433,58 @@
   let savedProperties;
   let backgroundRecord;
   let backgroundImage = fallback;
+  let wallpaperVideoUrl;
   let observedBody;
   let commentScope;
   let commentTimer;
   const commentStyles = new Map();
   const pendingCommentHosts = new Set();
-  const attributes = ["data-bc-enabled", "data-bc-coverage", "data-bc-material"];
+  const attributes = [
+    "data-bc-enabled", "data-bc-coverage", "data-bc-material",
+    "data-bc-hidden", "data-bc-channel-layout"
+  ];
+
+  function syncWallpaperPlayback() {
+    if (current?.enabled && wallpaper.isConnected && !document.hidden &&
+        wallpaper.dataset.bcVideo === "true") {
+      wallpaperVideo.muted = true;
+      void wallpaperVideo.play().catch(() => {});
+    } else {
+      wallpaperVideo.pause();
+    }
+  }
+
+  function clearWallpaperVideo() {
+    wallpaperVideo.pause();
+    if (wallpaperVideo.hasAttribute("src")) {
+      wallpaperVideo.removeAttribute("src");
+      wallpaperVideo.load();
+    }
+    if (wallpaperVideoUrl) URL.revokeObjectURL(wallpaperVideoUrl);
+    wallpaperVideoUrl = undefined;
+  }
+
+  function setWallpaperMedia(image) {
+    clearWallpaperVideo();
+    const video = image.dataUrl.startsWith("data:video/mp4;base64,");
+    wallpaper.dataset.bcVideo = String(video);
+    wallpaperVideo.style.display = video ? "block" : "none";
+    backgroundImage = video ? fallback : image.dataUrl
+      ? `url("${image.dataUrl}"), ${fallback}` : fallback;
+    wallpaper.style.setProperty("background-image", backgroundImage, "important");
+    if (!video) return;
+    const encoded = image.dataUrl.slice(image.dataUrl.indexOf(",") + 1);
+    const chunks = [];
+    for (let offset = 0; offset < encoded.length; offset += 262_144) {
+      const decoded = atob(encoded.slice(offset, offset + 262_144));
+      const bytes = new Uint8Array(decoded.length);
+      for (let index = 0; index < decoded.length; index += 1) bytes[index] = decoded.charCodeAt(index);
+      chunks.push(bytes);
+    }
+    wallpaperVideoUrl = URL.createObjectURL(new Blob(chunks, { type: "video/mp4" }));
+    wallpaperVideo.src = wallpaperVideoUrl;
+    syncWallpaperPlayback();
+  }
 
   function placeGlass(layer, rect, zIndex, radius = "0px") {
     layer.style.setProperty("display", "block", "important");
@@ -595,11 +717,14 @@
       observer.observe(container, { childList: true });
     }
     observedBody = document.body;
+    syncWallpaperPlayback();
     if (current?.material === "glass") scheduleHeaderGlass();
   }
 
   function unmount() {
     observer.disconnect();
+    clearWallpaperVideo();
+    backgroundRecord = undefined;
     stopHeaderGlass();
     stopCommentWatch();
     wallpaper.remove();
@@ -632,12 +757,17 @@
     if (backgroundRecord !== snapshot.background) {
       const image = BC.background(snapshot.background);
       backgroundRecord = snapshot.background;
-      backgroundImage = image.dataUrl ? `url("${image.dataUrl}"), ${fallback}` : fallback;
-      wallpaper.style.setProperty("background-image", backgroundImage, "important");
+      setWallpaperMedia(image);
     }
     root.setAttribute("data-bc-enabled", "true");
     root.setAttribute("data-bc-coverage", current.coverage);
     root.setAttribute("data-bc-material", current.material);
+    root.setAttribute("data-bc-hidden", BC.NAV_ITEMS.filter((entry) => current[entry.key])
+      .map((entry) => entry.key).join(" "));
+    const collapsedChannelGroups = channelGroups.filter((group) =>
+      group.items.every((entry) => current[entry.key])).map((group) => group.token);
+    if (collapsedChannelGroups.length === channelGroups.length) collapsedChannelGroups.push("all");
+    root.setAttribute("data-bc-channel-layout", collapsedChannelGroups.join(" "));
     for (const [name, value] of Object.entries(tokens)) root.style.setProperty(name, value, "important");
     mount();
     startHeaderGlass();
@@ -649,6 +779,7 @@
     catch (error) { unmount(); console.error("[Bilibili Theme] 无法应用主题", error); }
   });
   client.start().catch((error) => console.error("[Bilibili Theme] 无法读取设置", error));
+  document.addEventListener("visibilitychange", syncWallpaperPlayback);
   window.addEventListener("pagehide", (event) => {
     if (event.persisted) return;
     unsubscribe();
