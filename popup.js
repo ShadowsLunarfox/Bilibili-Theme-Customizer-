@@ -2,7 +2,7 @@
   const BC = globalThis.BiliTheme;
   const copy = {
     zh: {
-      appTitle: "哔哩哔哩主题", close: "关闭", enabled: "启用主题", language: "语言",
+      appTitle: "B哩B哩主题 / Bilibili Theme Customizer", close: "关闭", enabled: "启用主题", language: "语言",
       background: "桌面背景", previewTitle: "内容面板", previewSample: "主题设置预览",
       chooseImage: "浏览...", removeImage: "移除", imageHint: "支持图片、GIF 和 MP4，最大 20 MB；GIF 与视频保持动态，视频静音循环播放，文件只保存在本机。",
       coverage: "应用范围", coverageAll: "全元素", coveragePanels: "内容面板",
@@ -28,7 +28,7 @@
       IMAGE_ERROR: "背景文件处理失败，请重试。", LOAD_ERROR: "无法读取扩展设置，请重新加载扩展。"
     },
     en: {
-      appTitle: "Bilibili Theme", close: "Close", enabled: "Enable theme", language: "Language",
+      appTitle: "B哩B哩主题 / Bilibili Theme Customizer", close: "Close", enabled: "Enable theme", language: "Language",
       background: "Desktop background", previewTitle: "Content panel", previewSample: "Theme preview",
       chooseImage: "Browse...", removeImage: "Remove", imageHint: "Images, GIF and MP4 up to 20 MB. GIFs and videos stay animated; videos loop silently. Files stay on this device.",
       coverage: "Apply to", coverageAll: "All elements", coveragePanels: "Content panels",

@@ -49,17 +49,14 @@ h1, h2, p { margin: 0; }
   font-weight: 700;
 }
 .app-icon {
-  display: grid;
-  place-items: center;
-  width: 17px;
-  height: 17px;
+  display: block;
+  width: 20px;
+  height: 20px;
   flex: none;
   border: 1px solid #fff;
-  background: #008080;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
+  background: #a8ddfb;
+  object-fit: cover;
+  image-rendering: pixelated;
 }
 .version { font-size: 10px; color: #e5e5ff; }
 .window-close,

@@ -776,9 +776,9 @@
 
   const unsubscribe = client.subscribe((snapshot) => {
     try { apply(snapshot); }
-    catch (error) { unmount(); console.error("[Bilibili Theme] 无法应用主题", error); }
+    catch (error) { unmount(); console.error("[B哩B哩主题 / Bilibili Theme Customizer] 无法应用主题", error); }
   });
-  client.start().catch((error) => console.error("[Bilibili Theme] 无法读取设置", error));
+  client.start().catch((error) => console.error("[B哩B哩主题 / Bilibili Theme Customizer] 无法读取设置", error));
   document.addEventListener("visibilitychange", syncWallpaperPlayback);
   window.addEventListener("pagehide", (event) => {
     if (event.persisted) return;
