@@ -4,6 +4,11 @@
     zh: {
       appTitle: "B哩B哩主题 / Bilibili Theme Customizer", close: "关闭", enabled: "启用主题", language: "语言",
       languageAuto: "跟随浏览器",
+      referencePreset: "应用参考图 · 液态玻璃",
+      referenceHint: "保留站点横幅和轮播，应用浅色玻璃与粉色点缀；不更换壁纸或重置导航选择。",
+      minimalist: "极简模式", minimalistHint: "仅优化首页；关闭后恢复原布局，不改变原有主题和导航设置。可独立于主题启用。",
+      minimalistCategories: "选择精简频道中显示的分类",
+      minimalistCategoriesHint: "仅在精简频道开启时生效；原有导航隐藏设置优先。更多菜单保留原生交互。",
       background: "桌面背景", previewTitle: "内容面板", previewSample: "主题设置预览",
       chooseImage: "浏览...", removeImage: "移除", imageHint: "支持图片、GIF 和 MP4，最大 20 MB；GIF 与视频保持动态，视频静音循环播放，文件只保存在本机。",
       coverage: "应用范围", coverageAll: "全元素", coveragePanels: "内容面板",
@@ -31,6 +36,11 @@
     en: {
       appTitle: "B哩B哩主题 / Bilibili Theme Customizer", close: "Close", enabled: "Enable theme", language: "Language",
       languageAuto: "Auto",
+      referencePreset: "Apply Reference · Liquid Glass",
+      referenceHint: "Keeps the site's banner and carousel. Applies light glass and pink accents without replacing wallpaper or resetting navigation choices.",
+      minimalist: "Minimalist Mode", minimalistHint: "Homepage only. Turn off to restore the layout without changing theme or navigation preferences. Works independently of the theme.",
+      minimalistCategories: "Choose visible compact categories",
+      minimalistCategoriesHint: "Applies with Compact Categories enabled. Existing navigation hiding takes priority. More keeps its native menu.",
       background: "Desktop background", previewTitle: "Content panel", previewSample: "Theme preview",
       chooseImage: "Browse...", removeImage: "Remove", imageHint: "Images, GIF and MP4 up to 20 MB. GIFs and videos stay animated; videos loop silently. Files stay on this device.",
       coverage: "Apply to", coverageAll: "All elements", coveragePanels: "Content panels",
@@ -111,6 +121,21 @@
     document.querySelector("#navigation-groups").append(container);
     return { group, title, count, bulk, labels };
   });
+  const minimalistLabels = [];
+  for (const [entries, target] of [[BC.MINIMALIST_OPTIONS, "#minimalist-options"],
+    [BC.MINIMALIST_CATEGORIES, "#minimalist-categories"]]) {
+    for (const entry of entries) {
+      const label = document.createElement("label");
+      label.className = "option-row";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.name = entry.field || entry.key;
+      const text = document.createElement("span");
+      label.append(input, text);
+      document.querySelector(target).append(label);
+      minimalistLabels.push({ entry, input, text });
+    }
+  }
   const drafts = new Map();
   let ready = false;
   let busy = false;
@@ -131,6 +156,7 @@
     for (const element of document.querySelectorAll("[data-i18n-aria]")) {
       element.setAttribute("aria-label", t(element.dataset.i18nAria));
     }
+    for (const { entry, text } of minimalistLabels) text.textContent = entry[locale];
     for (const view of navigationGroups) {
       view.title.textContent = view.group[locale];
       for (const label of view.labels) label.text.textContent = label.entry[locale];
@@ -143,7 +169,7 @@
   }
 
   function render() {
-    const settings = { ...(client.snapshot.settings || BC.DEFAULT) };
+    const settings = BC.settings(client.snapshot.settings || BC.DEFAULT);
     for (const [name, draft] of drafts) settings[name] = draft.value;
     const background = client.snapshot.background || BC.emptyBackground();
     locale = languageOf(settings.language);
@@ -154,6 +180,7 @@
       form.elements.namedItem(name).value = settings[name];
     }
     form.elements.namedItem("enabled").checked = settings.enabled;
+    for (const { input } of minimalistLabels) input.checked = settings[input.name];
     let totalHidden = 0;
     for (const view of navigationGroups) {
       let hidden = 0;
@@ -341,6 +368,7 @@
   form.addEventListener("change", (event) => {
     if (event.target.name === "language") void saveField(event.target);
   });
+  document.querySelector("#apply-reference").addEventListener("click", () => void saveFields(BC.REFERENCE_PRESET));
   document.querySelector("#hide-all-nav").addEventListener("click",
     () => void saveNavigationItems(BC.NAV_ITEMS, true));
   document.querySelector("#show-all-nav").addEventListener("click",

@@ -7,6 +7,8 @@
   const client = BC.createClient();
   const fallback = "linear-gradient(135deg, #101927, #1c263a 48%, #102c35)";
   const pageTheme = globalThis.BiliThemePage;
+  const minimalist = globalThis.BiliThemeMinimalist;
+  const active = () => current?.enabled || current?.minimalistEnabled;
   const layoutMarkers = `${pageTheme.layoutSelector}, .bili-header__bar, .header-channel`;
   const navigationHideRules = BC.NAV_ITEMS.map((entry) =>
     `html[data-bc-enabled="true"][data-bc-hidden~="${entry.key}"] body :is(${entry.selector}) { display: none !important; }`
@@ -18,7 +20,7 @@
   ].map(({ token, key }) => ({ token, items: BC.NAV_GROUPS.find((group) => group.key === key).items }));
   const style = document.createElement("style");
   style.dataset.bcOwned = "style";
-  style.textContent = pageTheme.css + `
+  style.textContent = pageTheme.css + minimalist.css + `
     /* The shared navigation catalog gives every visible entry its own switch. */
     ${navigationHideRules}
     /* Remove each empty group and the entire channel row when nothing is left. */
@@ -106,7 +108,8 @@
     bili-comment-list-renderer`;
   const attributes = [
     "data-bc-enabled", "data-bc-coverage", "data-bc-material",
-    "data-bc-hidden", "data-bc-channel-layout", "data-bc-page"
+    "data-bc-hidden", "data-bc-channel-layout", "data-bc-page",
+    "data-bc-minimalist", "data-bc-min-options", "data-bc-min-categories"
   ];
 
   function syncWallpaperPlayback() {
@@ -133,9 +136,10 @@
     clearWallpaperVideo();
     const video = image.dataUrl.startsWith("data:video/mp4;base64,");
     wallpaper.dataset.bcVideo = String(video);
+    wallpaper.dataset.bcCustom = String(Boolean(image.dataUrl));
     wallpaperVideo.style.display = video ? "block" : "none";
     backgroundImage = video ? fallback : image.dataUrl
-      ? `url("${image.dataUrl}"), ${fallback}` : fallback;
+      ? `url("${image.dataUrl}"), ${fallback}` : `var(--bc-min-empty-wallpaper, ${fallback})`;
     wallpaper.style.setProperty("background-image", backgroundImage, "important");
     if (!video) return;
     const encoded = image.dataUrl.slice(image.dataUrl.indexOf(",") + 1);
@@ -374,7 +378,7 @@
 
   function syncPage() {
     pageFrame = 0;
-    if (!current?.enabled) return;
+    if (!active()) return;
     if (pageDirty || lastURL !== location.href || !root.hasAttribute("data-bc-page")) {
       lastURL = location.href;
       const name = pageTheme.classify(lastURL, (selector) => Boolean(document.querySelector(selector)));
@@ -387,32 +391,35 @@
       }
       pageDirty = false;
     }
+    if (current.minimalistEnabled && minimalist.isHome(location.href, root.getAttribute("data-bc-page"))) {
+      if (root.getAttribute("data-bc-minimalist") !== "true") root.setAttribute("data-bc-minimalist", "true");
+    } else if (root.hasAttribute("data-bc-minimalist")) root.removeAttribute("data-bc-minimalist");
     syncCommentScope();
   }
 
   function schedulePageSync(layoutChanged = false) {
     if (layoutChanged === true) pageDirty = true;
-    if (current?.enabled && !pageFrame) pageFrame = requestAnimationFrame(syncPage);
+    if (active() && !pageFrame) pageFrame = requestAnimationFrame(syncPage);
   }
 
   const observer = new MutationObserver((records) => {
-    if (current?.enabled && (wallpaper.parentElement !== document.body ||
+    if (active() && ((current.enabled && wallpaper.parentElement !== document.body) ||
         !style.isConnected || observedBody !== document.body)) mount();
-    if (!current?.enabled) return;
+    if (!active()) return;
     if (lastURL !== location.href || commentStyles.size || pendingCommentHosts.size) schedulePageSync();
     for (const record of records) {
       for (const node of [...record.addedNodes, ...record.removedNodes]) {
         if (node.nodeType !== Node.ELEMENT_NODE || node.hasAttribute("data-bc-owned")) continue;
         const layoutChanged = node.matches(layoutMarkers) || node.querySelector(layoutMarkers);
         if (layoutChanged) { schedulePageSync(true); if (current.material === "glass") scheduleHeaderGlass(); }
-        if (node.isConnected) scanCommentNode(node);
+        if (current.enabled && node.isConnected) scanCommentNode(node);
       }
     }
   });
 
   function mount() {
     if (!style.isConnected) (document.head || root).append(style);
-    if (document.body && wallpaper.parentElement !== document.body) {
+    if (current.enabled && document.body && wallpaper.parentElement !== document.body) {
       wallpaper.style.setProperty("background-image", backgroundImage, "important");
       document.body.prepend(wallpaper);
     }
@@ -455,7 +462,14 @@
 
   function apply(snapshot) {
     current = BC.settings(snapshot.settings);
-    if (!current.enabled) { unmount(); return; }
+    if (!active()) { unmount(); return; }
+    if (!current.enabled) {
+      clearWallpaperVideo();
+      backgroundRecord = undefined;
+      wallpaper.remove();
+      stopHeaderGlass();
+      stopCommentWatch();
+    }
     const tokens = BC.tokens(current);
     if (!savedAttributes) {
       savedAttributes = new Map(attributes.map((name) => [name, root.getAttribute(name)]));
@@ -464,12 +478,16 @@
         priority: root.style.getPropertyPriority(name)
       }]));
     }
-    if (backgroundRecord !== snapshot.background) {
+    if (current.enabled && backgroundRecord !== snapshot.background) {
       const image = BC.background(snapshot.background);
       backgroundRecord = snapshot.background;
       setWallpaperMedia(image);
     }
-    root.setAttribute("data-bc-enabled", "true");
+    if (current.enabled) root.setAttribute("data-bc-enabled", "true");
+    else root.removeAttribute("data-bc-enabled");
+    root.setAttribute("data-bc-min-options", minimalist.flags(current));
+    root.setAttribute("data-bc-min-categories", BC.MINIMALIST_CATEGORIES
+      .filter(entry => current[entry.field]).map(entry => entry.key).join(" "));
     root.setAttribute("data-bc-coverage", current.coverage);
     root.setAttribute("data-bc-material", current.material);
     root.setAttribute("data-bc-hidden", BC.NAV_ITEMS.filter((entry) => current[entry.key])
@@ -480,8 +498,7 @@
     root.setAttribute("data-bc-channel-layout", collapsedChannelGroups.join(" "));
     for (const [name, value] of Object.entries(tokens)) root.style.setProperty(name, value, "important");
     mount();
-    startHeaderGlass();
-    startCommentWatch();
+    if (current.enabled) { startHeaderGlass(); startCommentWatch(); }
   }
 
   const unsubscribe = client.subscribe((snapshot) => {

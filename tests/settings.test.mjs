@@ -138,3 +138,66 @@ test("duplicate and stale replies do not notify or replace media twice", async (
   assert.equal(client.snapshot.background, background);
   client.dispose();
 });
+
+test("minimalist defaults extend existing schema-2 profiles without changing theme or media", async () => {
+  const rt = createRuntime({
+    "bc.settings": { schemaVersion: 2, revision: 7, opacity: 23, blur: 5, material: "clear",
+      textColor: "#112233", accent: "#336699", topDownload: true, language: "zh" },
+    "bc.background": { revision: 7, dataUrl: gif, name: "Keep this wallpaper" }
+  });
+  const client = rt.BC.createClient(rt.chrome);
+  await client.start();
+  assert.equal(client.snapshot.settings.minimalistEnabled, false);
+  for (const field of ["minimalistHideAds", "minimalistHideBanner", "minimalistCompactNav", "minimalistGrid"]) {
+    assert.equal(client.snapshot.settings[field], true);
+  }
+  assert.equal(client.snapshot.settings.minimalistHideCarousel, false);
+  assert.equal(rt.writes, 0, "reading an existing profile doesn't overwrite storage");
+  await client.patch({ minimalistEnabled: true, minimalistHideAds: false,
+    minimalistCategory_channelFood: true, minimalistCategory_channelGames: false });
+  await client.patch({ minimalistEnabled: false });
+  const restored = (await createRuntime(rt.data).send(rt.BC.MESSAGE.GET)).data;
+  for (const field of ["opacity", "blur", "material", "textColor", "accent", "topDownload", "language"]) {
+    assert.equal(restored.settings[field], client.snapshot.settings[field]);
+  }
+  assert.equal(restored.background.dataUrl, gif);
+  assert.equal(restored.background.name, "Keep this wallpaper");
+  assert.equal(restored.settings.minimalistHideAds, false);
+  assert.equal(restored.settings.minimalistCategory_channelFood, true);
+  assert.equal(restored.settings.minimalistCategory_channelGames, false);
+  const writes = rt.writes;
+  await client.patch({ minimalistEnabled: false });
+  assert.equal(rt.writes, writes);
+  const normalized = rt.BC.settings({ minimalistEnabled: "true", minimalistHideAds: 0,
+    minimalistCategory_channelFood: "false", minimalistCategory_channelGames: null });
+  assert.equal(normalized.minimalistEnabled, false);
+  assert.equal(normalized.minimalistHideAds, true);
+  assert.equal(normalized.minimalistCategory_channelFood, false);
+  assert.equal(normalized.minimalistCategory_channelGames, true);
+  client.dispose();
+});
+
+test("reference liquid-glass preset persists without replacing media or navigation preferences", async () => {
+  const rt = createRuntime({ "bc.settings": { schemaVersion: 2, revision: 5, topDownload: true,
+    channelGames: true, minimalistCategory_channelMusic: false },
+    "bc.background": { revision: 5, dataUrl: gif, name: "My animation" } });
+  const client = rt.BC.createClient(rt.chrome);
+  await client.start();
+  assert.equal(client.snapshot.settings.minimalistReferenceLayout, false);
+  assert.equal(client.snapshot.settings.minimalistLiquidGlass, false);
+  await client.patch(rt.BC.REFERENCE_PRESET);
+  assert.equal(client.snapshot.settings.minimalistReferenceLayout, true);
+  assert.equal(client.snapshot.settings.minimalistLiquidGlass, true);
+  assert.equal(client.snapshot.settings.minimalistHideBanner, false);
+  assert.equal(client.snapshot.settings.minimalistHideCarousel, false);
+  assert.equal(client.snapshot.settings.topDownload, true);
+  assert.equal(client.snapshot.settings.channelGames, true);
+  assert.equal(client.snapshot.settings.minimalistCategory_channelMusic, false);
+  assert.equal(client.snapshot.background.dataUrl, gif);
+  assert.equal(client.snapshot.background.name, "My animation");
+  const restarted = (await createRuntime(rt.data).send(rt.BC.MESSAGE.GET)).data.settings;
+  for (const [key, value] of Object.entries(rt.BC.REFERENCE_PRESET)) assert.equal(restarted[key], value, key);
+  await client.patch({ minimalistReferenceLayout: false, minimalistLiquidGlass: false });
+  assert.equal(client.snapshot.settings.minimalistEnabled, true, "reference and liquid material have independent switches");
+  client.dispose();
+});

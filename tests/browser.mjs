@@ -7,6 +7,8 @@ import { join, extname, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRuntime } from "./runtime.mjs";
 import { compatibilityFixture } from "./compatibility-fixtures.mjs";
+import { runReferenceChecks } from "./reference.mjs";
+import { minimalistFixture, runMinimalistChecks } from "./minimalist.mjs";
 import { runCompatibilityMatrix } from "./compatibility.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -51,7 +53,7 @@ function fixture(BC) {
     #art {background-color:rgb(20,30,40)}
     #sample-text {color:#333} .user-card-m-exp {padding:10px}
   </style><script src="/bridge.js"></script>
-  <script src="/settings.js" defer></script><script src="/theme.js" defer></script><script src="/content.js" defer></script>
+  <script src="/settings.js" defer></script><script src="/theme.js" defer></script><script src="/minimalist.js" defer></script><script src="/content.js" defer></script>
   <body><header class="bili-header__bar"><ul class="left-entry-main">
     <li class="home-page-entry"><a href="/">Home</a></li>
     <li class="left-entry__item"><a href="https://app.bilibili.com">Download</a></li>
@@ -124,6 +126,7 @@ class CDP {
       navigate: (nextURL) => this.send("Page.navigate", { url: nextURL }, sessionId),
       close: () => this.send("Target.closeTarget", { targetId }),
       type: (text) => this.send("Input.insertText", { text }, sessionId),
+      resize: (width, height) => this.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false }, sessionId),
       screenshot: async () => Buffer.from((await this.send("Page.captureScreenshot", { format: "png" }, sessionId)).data, "base64"),
       reload: () => this.send("Page.reload", {}, sessionId),
       activate: () => this.send("Target.activateTarget", { targetId }) };
@@ -157,6 +160,8 @@ async function runBrowser(executable) {
         const { type, payload } = JSON.parse(body);
         response.setHeader("Content-Type", "application/json");
         response.end(JSON.stringify(await rt.send(type, payload)));
+      } else if (path === "/minimalist.html") {
+        response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(minimalistFixture(rt.BC));
       } else if (path === "/fixture.html") {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(fixture(rt.BC));
       } else if (path.startsWith("/matrix/")) {
@@ -164,7 +169,7 @@ async function runBrowser(executable) {
       } else if (path === "/bridge.js") {
         response.setHeader("Content-Type", "text/javascript; charset=utf-8"); response.end(bridge);
       } else {
-        const allowed = ["/popup.html", "/popup.js", "/popup.css", "/settings.js", "/theme.js", "/content.js"];
+        const allowed = ["/popup.html", "/popup.js", "/popup.css", "/settings.js", "/theme.js", "/minimalist.js", "/content.js"];
         if (!allowed.includes(path) && !/^\/assets\/[a-z0-9-]+\.png$/.test(path)) { response.writeHead(404).end(); return; }
         let file = await readFile(join(root, path.slice(1)));
         if (path === "/popup.html") file = file.toString().replace("<head>", '<head><script src="/bridge.js"></script>');
@@ -254,8 +259,20 @@ async function runBrowser(executable) {
     await input("language", "en");
     await until(popup, 'document.querySelector("#save-status").textContent === "Saved on this device"');
     assert.equal(await popup.evaluate('document.documentElement.lang'), "en");
+    assert.equal(await popup.evaluate('document.querySelector("#minimalist-title").textContent'), "Minimalist Mode");
+    assert.equal(await popup.evaluate('document.querySelector("[name=minimalistHideAds]").nextElementSibling.textContent'), "Hide Ads & Promotions");
+    await input("minimalistEnabled", true);
+    await until(popup, 'document.querySelector("#save-status").textContent === "Saved on this device"');
+    assert.equal(rt.data[rt.BC.KEYS.settings].minimalistEnabled, true);
+    await input("minimalistCategory_channelFood", true);
+    await until(popup, 'document.querySelector("#save-status").textContent === "Saved on this device"');
+    assert.equal(rt.data[rt.BC.KEYS.settings].minimalistCategory_channelFood, true);
+    await input("minimalistEnabled", false);
+    await until(popup, 'document.querySelector("#save-status").textContent === "Saved on this device"');
     await input("language", "zh");
     await until(popup, 'document.querySelector("#save-status").textContent === "已保存到本机"');
+    assert.equal(await popup.evaluate('document.querySelector("#minimalist-title").textContent'), "极简模式");
+    assert.equal(await popup.evaluate('document.querySelector("[name=minimalistHideAds]").nextElementSibling.textContent'), "隐藏广告与推广");
     await input("language", "auto");
     await until(popup, 'document.forms[0].elements.language.value === "auto" && !document.querySelector("#reset").disabled');
     assert.equal(rt.data[rt.BC.KEYS.settings].language, "auto");
@@ -324,6 +341,8 @@ async function runBrowser(executable) {
     await until(popup, '!document.querySelector("#controls").disabled && document.forms[0].elements.opacity.value === "58"');
     for (const field of rt.BC.FIELDS) assert.equal(rt.data[rt.BC.KEYS.settings][field], rt.BC.DEFAULT[field]);
     console.log("  PASS real MP4 decoding/playback, tab pause/resume, persistence, removal and defaults");
+    await runMinimalistChecks({ cdp, base, until, screenshots: screenshotDirectory, mp4: recordedMP4 });
+    await runReferenceChecks({ cdp, base, until, screenshots: screenshotDirectory });
     await runCompatibilityMatrix({ cdp, base, until, mp4: recordedMP4,
       screenshots: screenshotDirectory && join(screenshotDirectory, browserVersion.split("/")[0]) });
   } catch (error) {

@@ -52,7 +52,7 @@ export function compatibilityFixture(name) {
     .v-popover-content {display:none;position:absolute;right:20px;top:60px;padding:20px;width:200px}
     .bili-dyn-publishing__action {display:flex;gap:8px;margin-top:10px}
   </style><script src="/bridge.js"></script><script src="/settings.js" defer></script>
-    <script src="/theme.js" defer></script><script src="/content.js" defer></script></head><body>
+    <script src="/theme.js" defer></script><script src="/minimalist.js" defer></script><script src="/content.js" defer></script></head><body>
     <header class="bili-header__bar"><a href="#home">Bilibili</a><form class="nav-search-form"><input id="search" class="nav-search-input" placeholder="搜索 / Search"></form>
     <button id="menu-toggle">菜单 / Menu</button><div id="menu" class="v-popover-content" role="menu"><p>菜单内容 / Menu</p><input id="menu-input" placeholder="筛选 / Filter"></div></header>
     ${layouts[name]}

@@ -63,7 +63,8 @@ h1, h2, p { margin: 0; }
 .image-actions button,
 .status-bar button,
 .navigation-actions button,
-.nav-group-bulk {
+.nav-group-bulk,
+.reference-preset button {
   border: 2px solid;
   border-color: #fff #404040 #404040 #fff;
   border-radius: 0;
@@ -349,3 +350,12 @@ fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }
 }
+
+.minimalist-options { display: grid; gap: 8px; margin-top: 9px; }
+.minimalist-options .option-row:first-child { font-weight: 700; }
+.minimalist-category-picker { margin-top: 10px; }
+.minimalist-category-picker summary { cursor: pointer; line-height: 1.5; }
+
+.reference-preset { margin-top: 10px; padding-bottom: 10px; border-bottom: 1px solid #808080; }
+.reference-preset button { width: 100%; min-height: 29px; padding: 4px 8px; font-weight: 700; }
+.reference-preset button:active { border-color: #404040 #fff #fff #404040; }

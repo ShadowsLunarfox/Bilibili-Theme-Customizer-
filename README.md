@@ -116,3 +116,33 @@ See [TESTING.md](TESTING.md) for the feature audit, automated commands, and Chro
 ## 📄 许可 / License
 
 本项目使用 [GNU GPL v3](LICENSE) 许可。 / This project is licensed under the [GNU GPL v3](LICENSE).
+
+## 极简首页 / Minimalist homepage
+
+在扩展弹窗的 **极简模式** 分组中启用。默认关闭，不会改变已有用户的主题或导航偏好；也可在关闭「启用主题」时独立使用。
+
+- 开启后默认隐藏可明确识别的广告和顶部活动横幅，使用紧凑导航与响应式视频网格。轮播默认保留。
+- 频道精简、轮播隐藏、推荐区装饰隐藏和悬浮工具栏精简均可独立开关。在「选择精简频道中显示的分类」中选择分类；原有「导航与按钮」隐藏设置优先，原生「更多」菜单不被重建。
+- 网格随窗口宽度显示约 5 / 4 / 3 / 2 / 1 列；保留原视频节点、封面预览、视频信息和链接。发布时间等信息仅保留站点实际提供的内容，不伪造缺失数据。
+- 广告判据限于推荐卡片内明确的广告类名、广告属性及已知广告位；不读取标题或 UP 主名字判断广告。未知结构保留，避免误删普通视频。动态插入卡片及延迟出现的广告标记由 CSS 自动处理。
+- 样式仅作用于首页，切到视频、动态、空间等页面会退出；关闭极简模式可恢复原布局。壁纸、GIF、MP4、玻璃/透明材质和文字颜色继续由原主题设置控制。
+
+更新扩展文件后，在扩展管理页点击 **重新加载**，再刷新 Bilibili。真实站点的不同 DOM/A-B 版本仍需手动验收，参见 [TESTING.md](TESTING.md)。
+
+Enable **Minimalist Mode** in the extension popup. It is off by default, preserves existing theme/navigation preferences, and works independently of **Enable theme**.
+
+- Defaults hide explicitly identifiable ads and the promotional banner, compact the header, and enable a responsive 5/4/3/2/1-column video grid. The featured carousel stays visible.
+- Compact categories, carousel hiding, recommendation decorations and the minimal toolbar each have separate switches. Choose visible categories in the category picker. Existing navigation hiding takes priority; the native More menu is preserved.
+- Original video nodes, links, preview handlers and available metadata stay intact. Missing publication dates or other information are never invented.
+- Ad detection uses explicit card markers/attributes and known ad slots, never video titles or author names. Unknown layouts are preserved. CSS automatically handles new cards and late ad labels.
+- Homepage rules disengage on other routes and when the mode is disabled. Existing wallpaper, GIF/MP4, glass/clear, opacity, blur and color controls continue to work.
+
+After updating files, **Reload** the extension and refresh Bilibili. Live-site DOM variants still require the manual checks in [TESTING.md](TESTING.md).
+
+### 参考图布局与液态玻璃 / Reference layout & Liquid Glass
+
+打开弹窗，在「极简模式」中点击 **应用参考图 · 液态玻璃**：启用首页优化，保留原站横幅与轮播，使用浅色底景与深色文字、粉色点缀、胶囊搜索框、玻璃分类条，以及「主轮播 + 三张原生推荐侧栏 + 五列视频」的桌面布局。窄窗口自动恢复普通卡片流。
+
+「参考图首页布局」和「液态玻璃」可分别关闭。液态玻璃使用透明材质、饱和度、柔和边缘高光和轻阴影；仍遵循玻璃浓度、模糊、字体颜色及 Clear 模式。现有壁纸/GIF/MP4 和导航隐藏选择不会被预设清空。未设置壁纸时，该布局使用浅粉蓝底景；关闭极简模式恢复原来的底景。图片、标题、统计数据和轮播仍来自站点，不会植入参考截图里的虚构内容，也不会替换站点事件。
+
+Click **Apply Reference · Liquid Glass** in the popup to enable the reference-inspired homepage: native hero banner/carousel, a compact feature with three native recommendation cards beside it, five-column desktop recommendations, pill search and translucent category strip. Smaller windows return to the regular card flow. Reference Layout and Liquid Glass have independent switches. The preset applies light glass, pink accents, opacity 38 and blur 22, retaining wallpaper/media and navigation choices. Custom colors and Clear mode remain supported. An empty wallpaper uses a pastel backdrop only while Reference Layout is active. Site imagery and content remain native; the supplied screenshot is not embedded into the extension.

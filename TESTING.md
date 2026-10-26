@@ -81,3 +81,42 @@ Run the commands above with Node.js and installed Chrome/Edge; no npm packages a
 For acceptance, reload the extension and Bilibili; upload all six formats, test oversized files and animated playback; switch tabs and restart; exercise both materials and coverage modes, extreme opacity/blur and varied text colors; inspect search, menus, profile cards, descriptions and comments; test individual/group/global navigation controls across SPA routes; switch Chinese/English/Auto; disable/re-enable and restore defaults; upgrade existing saved settings.
 
 Remaining manual checks include real AVIF decoding and animated GIF playback, Bilibili DOM variants and account interactions, full-screen controls, display scaling, Chrome 114 and extended performance/memory profiling. MP4 playback remains subject to the browser's supported codecs.
+
+## 极简模式验证 / Minimalist Mode validation
+
+新增 `tests/minimalist.mjs`，由现有 `tests/browser.mjs` 自动运行，无额外依赖：
+
+```sh
+node --test tests/settings.test.mjs tests/theme.test.mjs
+# Linux example; pass your installed Chrome/Edge path on other systems:
+node tests/browser.mjs /usr/bin/chromium
+# Only for controlled local fixtures in a restricted container:
+BC_TEST_NO_SANDBOX=1 BC_TEST_SCREENSHOTS=tests/artifacts node tests/browser.mjs /usr/bin/chromium
+```
+
+新增的设置用例覆盖 schema-2 原配置的默认补全、严格布尔校验、旧主题/背景保留、关闭后保留子开关和频道选择、重启恢复与无变化写入。共 11 项 Node 测试。
+
+极简浏览器用例加载真实的 `settings.js`、`theme.js`、`minimalist.js`、`content.js`，沿用本地后台消息/存储桥，验证：
+
+- 初始关闭、默认保留轮播、独立切换广告/横幅/导航/网格/频道/装饰/工具栏；弹窗中文/英文标签、真实保存事件和频道选择。
+- 明确广告标记、包装卡片广告位及广告属性被隐藏；包含「广告」「商业」字样的普通标题/作者、空广告 ID 和非广告属性被保留。卡片外的相似标记不影响普通内容。
+- 动态插入、延迟添加/移除广告标记和属性变化；隐藏整个网格卡槽，卡片连续补位。
+- 1800/1300/950/650/420px 对应 5/4/3/2/1 列，无页面水平溢出；16:9 封面、桌面搜索居中、滚动固定导航。
+- 原始卡片节点身份不变，链接、搜索建议/提交、头像菜单、更多菜单和封面预览事件保留。此处验证的是受控夹具中的原生事件，没有声称已验证 Bilibili 的线上实现。
+- 频道选择和原导航隐藏优先级；亮/暗/灰/红文字、Glass/Clear、零浓度/模糊、PNG/GIF/真实 MP4 背景；切换极简模式不重新加载已有 MP4 背景。
+- 刷新保持设置、关闭恢复原网格/间距/标题字号/横幅/轮播、独立于主题运行、完全关闭清除扩展样式与根属性。
+- SPA 进入视频路由（即使旧首页 DOM 尚在）、返回首页，以及动态/视频/空间/搜索/番剧/图文/专栏/直播页面隔离。
+
+原有 200 组页面/材质/范围/背景矩阵、10 类禁用布局和媒体上传/播放回归仍会执行。截图输出到被 Git 忽略的 `tests/artifacts/minimalist-desktop.png` 和 `minimalist-narrow.png`，内容为本地结构夹具。
+
+广告选择器采用保守策略：推荐区域内的 `.bili-video-card__info--ad`、`--creative-ad`、`--ad-label`、明确的 `data-is-ad="true"`、非空 `data-ad-id` / `.is-ad` 卡片，以及区域直接子级的 `.bili-feed-ad`、`.ad-floor-exp`。不根据 `ad-report` 统计类名、标题、作者或营销关键词过滤。未知商业模块不会被猜测为广告。轮播用 `.recommended-swipe`，顶部活动横幅用 `.bili-header > .bili-header__banner`；本阶段不删除任意站点节点。
+
+手动验收仍需在真实 Bilibili 首页（含登录和未登录、不同 A/B 布局）检查：广告位与普通推荐、无限滚动补位、轮播开关、搜索建议、头像/消息通知悬浮菜单、实际封面预览和视频跳转；调整浏览器缩放与窗口宽度，确认顶部无覆盖或抖动。验证真实上传的 AVIF、多帧 GIF、不同编码 MP4、全屏播放器、登录操作及长期性能。遇到未覆盖的站点结构应补充明确结构夹具与选择器，不能用标题关键词或全站隐藏规则兜底。
+
+The new minimalist suite runs inside the existing browser runner with no package dependencies. It covers conservative and late ad markers, whole-slot removal and packing, responsive widths, native node/event preservation, bilingual popup persistence, category priority, theme/media combinations, restoration, independent operation and SPA/page isolation. These are local representative fixtures, not a live Bilibili session. Real homepage DOM/A-B variants, account and notification hover menus, actual site preview/player behavior, zoom, AVIF, multi-frame GIFs and long-term performance still require manual acceptance.
+
+### 参考图布局 / Liquid Glass regression
+
+`tests/reference.mjs` 由同一浏览器命令自动执行，覆盖弹窗预设、原生轮播与三卡侧栏（包含真实风格的 `.bili-video-card__wrap` 嵌套）、延迟广告导致的侧栏补位、独立横幅/轮播/玻璃开关、5/3/2/1 列响应布局、Clear 模式、文字颜色、独立于主题运行、原事件与节点保留、刷新、SPA 退出和恢复。预设保留背景和导航偏好的持久化用例已加入 Node 测试，总计 12 项。
+
+截图 `tests/artifacts/reference-liquid-desktop.png` 和 `reference-liquid-narrow.png` 用本地 SVG 风景演示结构与玻璃表面；这些测试图片只在测试页面中使用，产品没有替换 Bilibili 原图或加载附件截图。真实站点的轮播内部结构、封面预览、通知浮层、缩放和较旧 Chromium 版本仍需手动检查。

@@ -93,14 +93,47 @@
     ] }
   ].map((group) => Object.freeze({ ...group, items: Object.freeze(group.items) })));
   const NAV_ITEMS = Object.freeze(NAV_GROUPS.flatMap((group) => group.items));
+  // Additive schema-2 fields: old profiles retain all theme/media preferences.
+  const MINIMALIST_OPTIONS = Object.freeze([
+    ["minimalistEnabled", false, "启用极简模式", "Enable Minimalist Mode"],
+    ["minimalistReferenceLayout", false, "参考图首页布局", "Reference Homepage Layout"],
+    ["minimalistLiquidGlass", false, "液态玻璃", "Liquid Glass"],
+    ["minimalistHideAds", true, "隐藏广告与推广", "Hide Ads & Promotions"],
+    ["minimalistHideBanner", true, "隐藏顶部活动横幅", "Hide Promotional Banner"],
+    ["minimalistCompactNav", true, "精简导航栏", "Compact Navigation"],
+    ["minimalistCompactCategories", false, "精简频道分类", "Compact Categories"],
+    ["minimalistHideCarousel", false, "隐藏首页轮播", "Hide Featured Carousel"],
+    ["minimalistToolbar", false, "精简悬浮工具栏", "Minimal Floating Toolbar"],
+    ["minimalistGrid", true, "紧凑视频布局", "Compact Video Grid"],
+    ["minimalistHideDecorations", false, "隐藏推荐区装饰", "Hide Recommendation Decorations"]
+  ].map(([key, value, zh, en]) => Object.freeze({ key, value, zh, en })));
+  const preferredCategories = new Set(["channelAnimation", "channelGames", "channelTech",
+    "channelMusic", "channelFilm", "channelKnowledge", "channelLife", "channelMore"]);
+  const MINIMALIST_CATEGORIES = Object.freeze(NAV_GROUPS
+    .filter(group => ["channelCategories", "channelMoreItems"].includes(group.key))
+    .flatMap(group => group.items).map(entry => Object.freeze({ ...entry,
+      field: `minimalistCategory_${entry.key}`, value: preferredCategories.has(entry.key) })));
+  const minimalistDefaults = Object.fromEntries([
+    ...MINIMALIST_OPTIONS.map(entry => [entry.key, entry.value]),
+    ...MINIMALIST_CATEGORIES.map(entry => [entry.field, entry.value])
+  ]);
   const FIELDS = Object.freeze([
     "enabled", "coverage", "material", "opacity", "blur", "accent", "textColor", "language",
-    ...NAV_ITEMS.map((entry) => entry.key)
+    ...NAV_ITEMS.map((entry) => entry.key), ...Object.keys(minimalistDefaults)
   ]);
   const DEFAULT = Object.freeze({
     schemaVersion: 2, revision: 0, enabled: true, coverage: "all",
     material: "glass", opacity: 58, blur: 14, accent: "#63d5ff", textColor: "#ffffff",
-    language: "auto", ...Object.fromEntries(NAV_ITEMS.map((entry) => [entry.key, false]))
+    language: "auto", ...minimalistDefaults, ...Object.fromEntries(NAV_ITEMS.map((entry) => [entry.key, false]))
+  });
+
+  const REFERENCE_PRESET = Object.freeze({
+    enabled: true, minimalistEnabled: true, minimalistReferenceLayout: true,
+    minimalistLiquidGlass: true, minimalistHideAds: true, minimalistHideBanner: false,
+    minimalistCompactNav: true, minimalistCompactCategories: true,
+    minimalistHideCarousel: false, minimalistGrid: true, minimalistToolbar: true,
+    material: "glass", coverage: "panels", opacity: 38, blur: 22,
+    accent: "#fb7299", textColor: "#232638"
   });
 
   function boundedNumber(value, fallback, min, max) {
@@ -132,6 +165,9 @@
     for (const entry of NAV_ITEMS) {
       const legacy = entry.key === "topDownload" ? source.hideDownloadButton : false;
       result[entry.key] = typeof source[entry.key] === "boolean" ? source[entry.key] : legacy === true;
+    }
+    for (const [key, fallback] of Object.entries(minimalistDefaults)) {
+      result[key] = typeof source[key] === "boolean" ? source[key] : fallback;
     }
     return result;
   }
@@ -286,7 +322,8 @@
   }
 
   globalThis.BiliTheme = Object.freeze({
-    KEYS, MESSAGE, MAX_BACKGROUND_BYTES, FIELDS, DEFAULT, NAV_GROUPS, NAV_ITEMS, settings, patchSettings,
+    KEYS, MESSAGE, MAX_BACKGROUND_BYTES, FIELDS, DEFAULT, NAV_GROUPS, NAV_ITEMS,
+    MINIMALIST_OPTIONS, MINIMALIST_CATEGORIES, REFERENCE_PRESET, settings, patchSettings,
     emptyBackground, background, tokens, createClient
   });
 })();

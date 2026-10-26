@@ -65,6 +65,21 @@
             <div class="accent-row"><label for="text-color" data-i18n="textColor">网页字体颜色</label><input name="textColor" id="text-color" type="color" value="#ffffff"></div>
           </section>
 
+          <section class="group" aria-labelledby="minimalist-title">
+            <h2 id="minimalist-title" data-i18n="minimalist">极简模式</h2>
+            <p class="hint" data-i18n="minimalistHint">仅优化首页；关闭后恢复原布局，不改变原有主题和导航设置。</p>
+            <div class="reference-preset">
+              <button id="apply-reference" type="button" data-i18n="referencePreset">应用参考图 · 液态玻璃</button>
+              <p class="hint" data-i18n="referenceHint">保留站点横幅和轮播，应用浅色玻璃与粉色点缀；不更换壁纸或重置导航选择。</p>
+            </div>
+            <div id="minimalist-options" class="minimalist-options"></div>
+            <details class="minimalist-category-picker">
+              <summary data-i18n="minimalistCategories">选择精简频道中显示的分类</summary>
+              <p class="hint" data-i18n="minimalistCategoriesHint">仅在精简频道开启时生效；原有导航隐藏设置优先。更多菜单保留原生交互。</p>
+              <div id="minimalist-categories" class="nav-options"></div>
+            </details>
+          </section>
+
           <section class="group" aria-labelledby="cleanup-title">
             <div class="navigation-sticky">
               <h2 id="cleanup-title" data-i18n="cleanup">导航与按钮</h2>
