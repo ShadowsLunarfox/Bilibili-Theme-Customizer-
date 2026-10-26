@@ -38,14 +38,12 @@ export async function runCompatibilityMatrix({ cdp, base, until, mp4, screenshot
           assert(document.querySelectorAll('#bc-theme-wallpaper').length===1,label+': duplicate wallpaper');
           const primary=document.querySelector('#primary');
           if(primary) {
-            const base=rgb('rgb('+root.style.getPropertyValue('--bc-surface-rgb')+')');
-            const alpha=Number(root.style.getPropertyValue('--bc-wallpaper-veil'));
-            const worst=base[0]===0?[255,255,255]:[0,0,0];
-            let background=composite(worst,[...base,alpha]);
-            const ancestors=[];for(let e=primary;e&&e!==document.body;e=e.parentElement)ancestors.unshift(e);
-            for(const e of ancestors)background=composite(background,rgb(getComputedStyle(e).backgroundColor));
-            assert(ratio(rgb(getComputedStyle(primary).color),background)>=4.5-0.01,label+': primary contrast');
-            assert(ratio(rgb(get('#secondary','color')),background)>=4.5-0.01,label+': secondary contrast');
+            const edge=rgb(root.style.getPropertyValue('--bc-text-edge'));
+            assert(root.style.getPropertyValue('--bc-wallpaper-veil')==='0',label+': wallpaper fog');
+            assert(ratio(rgb(getComputedStyle(primary).color),edge)>=4.5-0.01,label+': primary text edge contrast');
+            assert(ratio(rgb(get('#secondary','color')),edge)>=4.5-0.01,label+': secondary text edge contrast');
+            assert(getComputedStyle(primary).textShadow!=='none',label+': localized text contrast');
+            assert(get('#readable-card','backdropFilter')==='none',label+': no content blur');
             assert(get('#status','backgroundColor')==='rgb(230, 30, 50)',label+': badge background');
             assert(get('#status','color')==='rgb(255, 255, 255)',label+': badge text');
             assert(get('#status-svg','color')==='rgb(230, 30, 50)',label+': SVG status');
@@ -54,8 +52,8 @@ export async function runCompatibilityMatrix({ cdp, base, until, mp4, screenshot
             assert(get('#media-cover','backgroundColor')==='rgb(31, 41, 51)',label+': media cover');
           }
           if('${name}'==='dynamic') {
-            assert(get('#editor','backgroundColor')==='rgba(0, 0, 0, 0)',label+': editor rectangle');
-            assert(get('#title-input','backgroundColor')==='rgba(0, 0, 0, 0)',label+': title rectangle');
+            assert((get('#editor','backgroundColor')==='rgba(0, 0, 0, 0)')===(material==='clear'||b===1),label+': identifiable editor glass');
+            assert((get('#title-input','backgroundColor')==='rgba(0, 0, 0, 0)')===(material==='clear'||b===1),label+': identifiable title glass');
             assert(get('#publish','backgroundColor')==='rgb(0, 174, 236)',label+': publish background');
             assert(get('#publish','color')==='rgb(255, 255, 255)',label+': publish text');
             assert(get('.bili-dyn-item__main','backdropFilter')==='none',label+': nested blur');

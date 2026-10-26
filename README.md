@@ -23,11 +23,13 @@
 | 功能 | 说明 |
 | --- | --- |
 | 🖼️ 自定义背景 | 上传 PNG、JPG、WebP、AVIF、GIF 或 MP4。每个文件最大 **20 MB**。静态图片会缩放并转换为 WebP；GIF 保留动画；MP4 静音循环播放，切走标签页时暂停。 |
-| 🧊 毛玻璃与透明 | 在“毛玻璃”和“透明”之间切换，调整玻璃浓度、模糊强度和点缀色。可选择全元素或内容面板范围。 |
+| 🧊 磨砂玻璃与透明 | 导航、内容和浮层采用三档有色磨砂玻璃；调整玻璃浓度、模糊强度和点缀色，也可主动切换为透明模式。 |
 | 🎨 字体颜色 | 自定义网页文字颜色；输入框底色会随所选文字颜色调整。 |
 | 🧭 导航整理 | 分别隐藏顶部左侧、首页频道图标、分类、快捷入口、更多频道和悬浮工具栏中的项目；支持一键隐藏或显示整组。 |
 | 🪟 站内界面 | 搜索建议、悬浮菜单、个人资料卡、视频简介和评论区等区域也会应用主题效果。 |
 | 🌐 双语面板 | 默认跟随浏览器语言，也可在弹窗中选择“跟随浏览器”、中文或 English；选择会自动保存。 |
+
+在「界面效果」中选择 **磨砂玻璃** 即可使用，不需要开启首页筛选或应用配色预设。导航采用轻档玻璃，视频文字、评论、动态和个人空间面板采用内容档，菜单与弹窗采用更强的浮层档。输入框具有清晰底色、边框与焦点提示。按壁纸明暗采样优先加强面板底色，保留所选文字颜色及其他设置；不添加全页雾层。缩略图、封面和播放器保持清晰，原站布局与断点不变。
 
 ### 🚀 安装教程
 
@@ -51,6 +53,15 @@
 
 </details>
 
+<details>
+<summary>🛠️ 出现 Mixed Content，调用栈指向 syncHeaderGlass？</summary>
+
+如果提示包含 `http://i0.hdslb.com/` 和 `automatically upgraded to HTTPS`，表示站点图片仍使用 HTTP 链接，浏览器已将请求升级为 HTTPS。旧版导航玻璃层同步测量尺寸时会触发站点样式计算，让这条警告带上 `content.js` 调用栈。现在测量安排在浏览器布局后，统一读取尺寸再更新玻璃层。
+
+更新文件后，请**重新加载扩展、刷新 Bilibili，再清除旧错误记录**。站点自身的 Mixed Content 提示仍可能出现在页面控制台。浏览器的自动升级行为见 [Chromium 说明](https://blog.chromium.org/2019/10/no-more-mixed-messages-about-https.html)。
+
+</details>
+
 ### 🧪 开发验证
 
 功能检查结果、自动化测试命令和 Chrome / Edge 手动验收步骤见 [TESTING.md](TESTING.md)。测试工具仅用于开发，扩展仍可直接加载，无需安装依赖或构建。
@@ -67,11 +78,13 @@ A Chrome / Edge extension for customizing Bilibili backgrounds, glass effects, a
 | Feature | Description |
 | --- | --- |
 | 🖼️ Custom backgrounds | Upload PNG, JPG, WebP, AVIF, GIF, or MP4 files up to **20 MB each**. Static images are resized and converted to WebP. GIFs remain animated. MP4 videos loop silently and pause when the tab is hidden. |
-| 🧊 Frosted glass or clear | Choose a frosted or transparent interface, then adjust opacity, blur, accent color, and whether the effect covers all elements or content panels. |
+| 🧊 Frosted Glass or clear | Three tinted glass strengths for navigation, content and overlays. Adjust strength, blur, accent color and coverage. |
 | 🎨 Text color | Pick a page text color. Input backgrounds adapt to keep the text readable. |
 | 🧭 Navigation controls | Hide individual items in the top-left navigation, home channels, shortcuts, More menu, and floating toolbar. Hide or show an entire group with one click. |
 | 🪟 Site UI | The theme also styles search suggestions, hover menus, profile cards, video descriptions, and comments. |
 | 🌐 Two languages | Follow the browser language by default, or choose Auto, 中文, or English in the popup. Your choice is saved. |
+
+Choose **Frosted Glass** under Appearance; it does not require Homepage Filters or a color preset. Navigation uses lighter frost; video cards, comments, feeds and profile panels use stronger content frost; menus and dialogs use the strongest overlay frost. Homepage cards share one surface beneath their sharp thumbnail and text. Category glass follows the actual navigation groups, leaving native outer padding clear, and category links use subtle text-tab states. Homepage search has one tinted shell and focus ring. Bright wallpaper strengthens panel tint before changing foreground contrast, while the saved color and settings remain intact. Thumbnails, covers and player media stay sharp. There is no full-page fog, and native sizing, wrapping and responsive breakpoints remain unchanged.
 
 ### 🚀 Installation
 
@@ -92,6 +105,15 @@ Background images and videos stay in local browser storage; this extension does 
 <summary>🛠️ Hide buttons do nothing, or settings.js fails to load?</summary>
 
 Check the popup status and errors on the extensions page. Make sure Chrome or Edge loaded the current project folder, click **Reload**, and refresh open Bilibili tabs. Clear old errors if needed, then check whether a new error appears.
+
+</details>
+
+<details>
+<summary>🛠️ Mixed Content warning points to syncHeaderGlass?</summary>
+
+A warning containing `http://i0.hdslb.com/` and `automatically upgraded to HTTPS` means a native site image uses an HTTP URL that the browser upgraded to HTTPS. Previously, synchronous glass measurements could flush pending site styles and attach a `content.js` stack to that warning. Measurements now run after browser layout, with geometry reads grouped before glass updates.
+
+After updating, **reload the extension, refresh Bilibili, and clear old errors**. Native site warnings may still appear in the page console. See [Chromium's explanation](https://blog.chromium.org/2019/10/no-more-mixed-messages-about-https.html) of automatic upgrading.
 
 </details>
 
@@ -117,32 +139,22 @@ See [TESTING.md](TESTING.md) for the feature audit, automated commands, and Chro
 
 本项目使用 [GNU GPL v3](LICENSE) 许可。 / This project is licensed under the [GNU GPL v3](LICENSE).
 
-## 极简首页 / Minimalist homepage
+## 原生布局 / Native layout
 
-在扩展弹窗的 **极简模式** 分组中启用。默认关闭，不会改变已有用户的主题或导航偏好；也可在关闭「启用主题」时独立使用。
+**哔哩哔哩控制布局，主题控制外观。** 主题不会替换网格、轮播跨度、标题尺寸、频道换行、导航高度、搜索框约束或响应式断点。旧版紧凑导航与自定义网格设置保留在存储中，但已停用；升级后无需重置个人设置。
 
-- 开启后默认隐藏可明确识别的广告和顶部活动横幅，使用紧凑导航与响应式视频网格。轮播默认保留。
-- 频道精简、轮播隐藏、推荐区装饰隐藏和悬浮工具栏精简均可独立开关。在「选择精简频道中显示的分类」中选择分类；原有「导航与按钮」隐藏设置优先，原生「更多」菜单不被重建。
-- 网格随窗口宽度显示约 5 / 4 / 3 / 2 / 1 列；保留原视频节点、封面预览、视频信息和链接。发布时间等信息仅保留站点实际提供的内容，不伪造缺失数据。
-- 广告判据限于推荐卡片内明确的广告类名、广告属性及已知广告位；不读取标题或 UP 主名字判断广告。未知结构保留，避免误删普通视频。动态插入卡片及延迟出现的广告标记由 CSS 自动处理。
-- 样式仅作用于首页，切到视频、动态、空间等页面会退出；关闭极简模式可恢复原布局。壁纸、GIF、MP4、玻璃/透明材质和文字颜色继续由原主题设置控制。
+**Bilibili controls layout; the theme controls appearance.** Header/search sizing, category flow, container margins, grid tracks/gaps, carousel spans, thumbnail ratios, title wrapping and responsive rules stay native. Legacy compact-navigation and custom-grid values remain saved but no longer alter the site.
 
-更新扩展文件后，在扩展管理页点击 **重新加载**，再刷新 Bilibili。真实站点的不同 DOM/A-B 版本仍需手动验收，参见 [TESTING.md](TESTING.md)。
+Use **Homepage Filters** to explicitly hide ads, banner artwork, carousel, selected categories, decorations or promotional toolbar entries. Filtering is off by default and can work independently of the theme. Hiding banner artwork retains its native space so the header and categories keep their original flow. Registered ad slots are hidden as complete units; native grid placement reflows the remaining content. Ordinary titles and creators are never matched as ads.
 
-Enable **Minimalist Mode** in the extension popup. It is off by default, preserves existing theme/navigation preferences, and works independently of **Enable theme**.
+**Apply Glass Colors** changes only the material, colors, strength and optional background palette. It preserves wallpaper/media, navigation choices and filter preferences. The palette affects only the default homepage wallpaper. Glass uses tinted native backgrounds and separate, non-interactive blur layers that follow native rectangles. The layers never filter text or media and never change native layout or event targets.
 
-- Defaults hide explicitly identifiable ads and the promotional banner, compact the header, and enable a responsive 5/4/3/2/1-column video grid. The featured carousel stays visible.
-- Compact categories, carousel hiding, recommendation decorations and the minimal toolbar each have separate switches. Choose visible categories in the category picker. Existing navigation hiding takes priority; the native More menu is preserved.
-- Original video nodes, links, preview handlers and available metadata stay intact. Missing publication dates or other information are never invented.
-- Ad detection uses explicit card markers/attributes and known ad slots, never video titles or author names. Unknown layouts are preserved. CSS automatically handles new cards and late ad labels.
-- Homepage rules disengage on other routes and when the mode is disabled. Existing wallpaper, GIF/MP4, glass/clear, opacity, blur and color controls continue to work.
+| Glass level | Components | Default blur / base tint alpha |
+| --- | --- | --- |
+| 1: navigation | Top/category bars, search navigation, profile/feed tabs | 12px / .24 |
+| 2: content | Video information, right sidebar, comments, dynamic/community cards, profile panels, floating tool panels | 18px / .46 |
+| 3: overlays | Menus, suggestions, popovers, dialogs, tooltips | 20px / .66 |
 
-After updating files, **Reload** the extension and refresh Bilibili. Live-site DOM variants still require the manual checks in [TESTING.md](TESTING.md).
+These defaults follow the existing strength/blur controls. Wallpaper sampling increases tint where needed; existing custom images/GIFs/MP4s remain visible. No-backdrop and reduced-transparency modes use a .94 tint fallback. Clear mode and explicitly zero strength remain available. Nested content shares its outer glass surface rather than adding another blur layer.
 
-### 参考图布局与液态玻璃 / Reference layout & Liquid Glass
-
-打开弹窗，在「极简模式」中点击 **应用参考图 · 液态玻璃**：启用首页优化，保留原站横幅与轮播，使用浅色底景与深色文字、粉色点缀、胶囊搜索框、玻璃分类条，以及「主轮播 + 三张原生推荐侧栏 + 五列视频」的桌面布局。窄窗口自动恢复普通卡片流。
-
-「参考图首页布局」和「液态玻璃」可分别关闭。液态玻璃使用透明材质、饱和度、柔和边缘高光和轻阴影；仍遵循玻璃浓度、模糊、字体颜色及 Clear 模式。现有壁纸/GIF/MP4 和导航隐藏选择不会被预设清空。未设置壁纸时，该布局使用浅粉蓝底景；关闭极简模式恢复原来的底景。图片、标题、统计数据和轮播仍来自站点，不会植入参考截图里的虚构内容，也不会替换站点事件。
-
-Click **Apply Reference · Liquid Glass** in the popup to enable the reference-inspired homepage: native hero banner/carousel, a compact feature with three native recommendation cards beside it, five-column desktop recommendations, pill search and translucent category strip. Smaller windows return to the regular card flow. Reference Layout and Liquid Glass have independent switches. The preset applies light glass, pink accents, opacity 38 and blur 22, retaining wallpaper/media and navigation choices. Custom colors and Clear mode remain supported. An empty wallpaper uses a pastel backdrop only while Reference Layout is active. Site imagery and content remain native; the supplied screenshot is not embedded into the extension.
+[TESTING.md](TESTING.md) explains native/themed comparisons at seven widths, continuous resizing, stylesheet auditing, browser regression coverage and live-reference limitations.

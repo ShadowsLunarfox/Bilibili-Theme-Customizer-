@@ -24,34 +24,52 @@ test("settings validation and tokens preserve zero values and clear mode", () =>
   assert.equal(settings.blur, 0);
   assert.equal(settings.textColor, "#aabbcc");
   assert.equal(BC.tokens(settings)["--bc-header-alpha"], "0");
-  assert.equal(BC.tokens({ opacity: 37 })["--bc-header-alpha"], "0.37");
+  assert.ok(Number(BC.tokens({ opacity: 37 })["--bc-header-alpha"])>0);
   assert.equal(BC.tokens({ material: "clear" })["--bc-blur"], "0px");
   assert.notEqual(BC.tokens({ textColor: "#000000" })["--bc-input-bg"], BC.tokens({ textColor: "#ffffff" })["--bc-input-bg"]);
   assert.equal(BC.patchSettings(BC.DEFAULT, { revision: 900, schemaVersion: 99 }).revision, 0);
   assert.throws(() => BC.patchSettings(BC.DEFAULT, []));
 });
 
-test("readability veil preserves custom text contrast without solid input boxes", () => {
+test("restrained material tokens preserve wallpaper and supply local text contrast", () => {
   const { BC } = createRuntime();
-  assert.equal(BC.tokens({ textColor: "#ff0000" })["--bc-input-bg"], "rgba(0, 0, 0, 0.18)");
-  for (let red = 0; red <= 255; red += 51) {
-    for (let green = 0; green <= 255; green += 51) {
-      for (let blue = 0; blue <= 255; blue += 51) {
-        const color = `#${[red, green, blue].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
-        const channels = [red, green, blue].map((c) => c / 255).map((c) => c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-        const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
-        const tokens = BC.tokens({ textColor: color });
-        assert.equal(tokens["--bc-text-color"], color);
-        const white = tokens["--bc-surface-rgb"] === "255, 255, 255";
-        const veil = Number(tokens["--bc-wallpaper-veil"]);
-        const channel = Math.round(white ? 255 * veil : 255 * (1 - veil)) / 255;
-        const background = channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-        assert.ok((Math.max(luminance, background) + 0.05) / (Math.min(luminance, background) + 0.05) >= 4.5, color);
-      }
+  const lum = rgb => { const c=rgb.map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4); return c[0]*.2126+c[1]*.7152+c[2]*.0722; };
+  for(let r=0;r<=255;r+=51) for(let g=0;g<=255;g+=51) for(let b=0;b<=255;b+=51) {
+    const color='#'+[r,g,b].map(c=>c.toString(16).padStart(2,'0')).join('');
+    const tokens=BC.tokens({textColor:color});
+    assert.equal(tokens['--bc-text-color'],color);
+    assert.equal(tokens['--bc-wallpaper-veil'],'0');
+    const edge=tokens['--bc-text-edge'].match(/\d+/g).map(Number);
+    assert.ok((Math.max(lum([r,g,b]),lum(edge))+.05)/(Math.min(lum([r,g,b]),lum(edge))+.05)>=4.5);
+    assert.notEqual(tokens['--bc-text-shadow'],'none');
+    for(const background of [[255,255,255],[0,0,0]]) {
+      const adapted=BC.tokens({textColor:color},background);
+      const ink=adapted['--bc-foreground'].match(/\d+/g).map(Number);
+      assert.equal(adapted['--bc-text-color'],color,'preferred color remains unchanged');
+      const rgba=adapted['--bc-glass-bg-content'].match(/[\d.]+/g).map(Number);
+      const panel=background.map((v,i)=>v*(1-rgba[3])+rgba[i]*rgba[3]);
+      assert.ok((Math.max(lum(ink),lum(panel))+.05)/(Math.min(lum(ink),lum(panel))+.05)>=4.5,'ink contrasts composited frosted panel');
+      const metadata=adapted['--bc-secondary-color'].match(/\d+/g).map(Number);
+      assert.ok((Math.max(lum(metadata),lum(panel))+.05)/(Math.min(lum(metadata),lum(panel))+.05)>=4.5,'metadata contrasts composited frosted panel');
     }
   }
+  assert.ok(Number(BC.tokens()['--bc-glass-opacity'])>0);
+  assert.equal(BC.tokens()['--bc-glass-tint'],'20, 24, 32');
+  assert.equal(BC.tokens()['--bc-glass-bg'],'var(--bc-glass-bg-light)');
+  assert.equal(BC.tokens()['--bc-glass-blur'],'18px');
+  assert.equal(BC.tokens({blur:7})['--bc-glass-blur'],'7px');
+  assert.equal(BC.tokens({material:'clear'})['--bc-glass-filter'],'none');
+  const alpha=t=>Number(t.match(/[\d.]+/g)[3]);
+  const normal=BC.tokens(),bright=BC.tokens({},[255,255,255]);
+  assert.ok(alpha(normal['--bc-glass-bg-light'])<alpha(normal['--bc-glass-bg-content']));
+  assert.ok(alpha(normal['--bc-glass-bg-content'])<alpha(normal['--bc-glass-bg-strong']));
+  assert.ok(alpha(bright['--bc-glass-bg-content'])>alpha(normal['--bc-glass-bg-content']));
+  assert.equal(bright['--bc-foreground'],normal['--bc-foreground'],'tint adapts before changing white ink');
+  assert.equal(normal['--bc-glass-blur-light'],'12px');
+  assert.equal(normal['--bc-glass-blur-strong'],'20px');
+  const mixed=BC.tokens({},{mean:[120,120,120],dark:[0,0,0],bright:[255,255,255]});
+  assert.ok(alpha(mixed['--bc-glass-bg-content'])>=alpha(bright['--bc-glass-bg-content']),'bright wallpaper regions receive protection even with a darker average');
 });
-
 test("legacy settings and embedded backgrounds migrate without losing preferences", async () => {
   for (const key of ["settings", "bc.settings"]) {
     const rt = createRuntime({ [key]: { schemaVersion: 1, opacity: 23, language: "en", hideDownloadButton: true, backgroundImage: gif } });
@@ -188,7 +206,7 @@ test("reference liquid-glass preset persists without replacing media or navigati
   await client.patch(rt.BC.REFERENCE_PRESET);
   assert.equal(client.snapshot.settings.minimalistReferenceLayout, true);
   assert.equal(client.snapshot.settings.minimalistLiquidGlass, true);
-  assert.equal(client.snapshot.settings.minimalistHideBanner, false);
+  assert.equal(client.snapshot.settings.minimalistHideBanner, true);
   assert.equal(client.snapshot.settings.minimalistHideCarousel, false);
   assert.equal(client.snapshot.settings.topDownload, true);
   assert.equal(client.snapshot.settings.channelGames, true);
@@ -198,6 +216,6 @@ test("reference liquid-glass preset persists without replacing media or navigati
   const restarted = (await createRuntime(rt.data).send(rt.BC.MESSAGE.GET)).data.settings;
   for (const [key, value] of Object.entries(rt.BC.REFERENCE_PRESET)) assert.equal(restarted[key], value, key);
   await client.patch({ minimalistReferenceLayout: false, minimalistLiquidGlass: false });
-  assert.equal(client.snapshot.settings.minimalistEnabled, true, "reference and liquid material have independent switches");
+  assert.equal(client.snapshot.settings.minimalistEnabled, false, "appearance preset never enables content filtering");
   client.dispose();
 });

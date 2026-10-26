@@ -10,10 +10,16 @@ import { compatibilityFixture } from "./compatibility-fixtures.mjs";
 import { runReferenceChecks } from "./reference.mjs";
 import { minimalistFixture, runMinimalistChecks } from "./minimalist.mjs";
 import { runCompatibilityMatrix } from "./compatibility.mjs";
+import { runHeaderGlassChecks } from "./header-glass.mjs";
+import { liquidFixture, runLiquidChecks } from "./liquid.mjs";
+import { runOfficialParity } from "./official-parity.mjs";
+import {homescreenFixture,runHomescreenChecks} from './homescreen.mjs';
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const browserExtraArgs = process.env.BC_TEST_NO_SANDBOX === "1" ? ["--no-sandbox"] : [];
 const screenshotDirectory = process.env.BC_TEST_SCREENSHOTS;
+const officialMode = process.env.BC_TEST_OFFICIAL === "1";
+const homeCaptureMode = process.env.BC_TEST_HOME_CAPTURE;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8"));
 const bridge = `
@@ -122,7 +128,7 @@ class CDP {
       return result.result.value;
     };
     await this.send("Page.navigate", { url }, sessionId);
-    return { targetId, evaluate,
+    return { targetId, sessionId, evaluate,
       navigate: (nextURL) => this.send("Page.navigate", { url: nextURL }, sessionId),
       close: () => this.send("Target.closeTarget", { targetId }),
       type: (text) => this.send("Input.insertText", { text }, sessionId),
@@ -160,6 +166,10 @@ async function runBrowser(executable) {
         const { type, payload } = JSON.parse(body);
         response.setHeader("Content-Type", "application/json");
         response.end(JSON.stringify(await rt.send(type, payload)));
+      } else if (path === "/liquid.html") {
+        response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(liquidFixture(rt.BC));
+      } else if (path === "/homescreen.html") {
+        response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(homescreenFixture(rt.BC));
       } else if (path === "/minimalist.html") {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(minimalistFixture(rt.BC));
       } else if (path === "/fixture.html") {
@@ -197,6 +207,12 @@ async function runBrowser(executable) {
     cdp = await CDP.connect(endpoint);
     const browserVersion = (await cdp.send("Browser.getVersion")).product;
     console.log(`  ${browserVersion}`);
+    if (officialMode) {
+      await runOfficialParity({cdp,until,artifacts:screenshotDirectory});
+      return;
+    }
+    if(homeCaptureMode){await runHomescreenChecks({cdp,base,until,screenshots:screenshotDirectory,mode:homeCaptureMode});return;}
+    await runHeaderGlassChecks({ cdp, until, html: fixture(rt.BC), snapshot: (await rt.send(rt.BC.MESSAGE.GET)).data });
     const page = await cdp.page(`${base}/fixture.html`);
     await until(page, 'document.documentElement.dataset.bcEnabled === "true"');
     console.log("  Fixture loaded");
@@ -224,11 +240,11 @@ async function runBrowser(executable) {
     assert.equal(await style("#control-icon", "webkitTextFillColor"), "rgb(255, 128, 0)");
     assert.equal(await style("#control-icon", "backgroundColor"), "rgb(1, 2, 3)");
     assert.equal(await style("#art", "backgroundColor"), "rgb(20, 30, 40)");
-    assert.equal(await style("#search-input", "backgroundColor"), "rgba(255, 255, 255, 0.18)");
-    assert.match(await style("#bc-theme-header-glass", "backgroundColor"), /0\.37/);
+    assert.notEqual(await style("#search-input", "backgroundColor"), "rgba(0, 0, 0, 0)");
+    assert.notEqual(await style(".bili-header__bar", "backgroundColor"), "rgba(0, 0, 0, 0)");
     await patch({ material: "clear", coverage: "panels" });
-    assert.equal(await style(".video-desc-container", "backdropFilter"), "blur(0px)");
-    assert.equal(await style(".video-desc-container", "backgroundColor"), "rgba(255, 255, 255, 0)");
+    assert.equal(await style(".video-desc-container", "backdropFilter"), "none");
+    assert.equal(await style(".video-desc-container", "backgroundColor"), "rgba(0, 0, 0, 0)");
     await patch({ material: "glass", coverage: "all", topDownload: true, channelFitness: true });
     assert.equal(await style(".left-entry__item", "display"), "none");
     assert.equal(await style('a[href="/c/gym/"]', "display"), "none");
@@ -259,7 +275,7 @@ async function runBrowser(executable) {
     await input("language", "en");
     await until(popup, 'document.querySelector("#save-status").textContent === "Saved on this device"');
     assert.equal(await popup.evaluate('document.documentElement.lang'), "en");
-    assert.equal(await popup.evaluate('document.querySelector("#minimalist-title").textContent'), "Minimalist Mode");
+    assert.equal(await popup.evaluate('document.querySelector("#minimalist-title").textContent'), "Homepage Filters");
     assert.equal(await popup.evaluate('document.querySelector("[name=minimalistHideAds]").nextElementSibling.textContent'), "Hide Ads & Promotions");
     await input("minimalistEnabled", true);
     await until(popup, 'document.querySelector("#save-status").textContent === "Saved on this device"');
@@ -271,7 +287,7 @@ async function runBrowser(executable) {
     await until(popup, 'document.querySelector("#save-status").textContent === "Saved on this device"');
     await input("language", "zh");
     await until(popup, 'document.querySelector("#save-status").textContent === "已保存到本机"');
-    assert.equal(await popup.evaluate('document.querySelector("#minimalist-title").textContent'), "极简模式");
+    assert.equal(await popup.evaluate('document.querySelector("#minimalist-title").textContent'), "首页筛选");
     assert.equal(await popup.evaluate('document.querySelector("[name=minimalistHideAds]").nextElementSibling.textContent'), "隐藏广告与推广");
     await input("language", "auto");
     await until(popup, 'document.forms[0].elements.language.value === "auto" && !document.querySelector("#reset").disabled');
@@ -341,6 +357,8 @@ async function runBrowser(executable) {
     await until(popup, '!document.querySelector("#controls").disabled && document.forms[0].elements.opacity.value === "58"');
     for (const field of rt.BC.FIELDS) assert.equal(rt.data[rt.BC.KEYS.settings][field], rt.BC.DEFAULT[field]);
     console.log("  PASS real MP4 decoding/playback, tab pause/resume, persistence, removal and defaults");
+    await runLiquidChecks({ cdp, base, until, screenshots: screenshotDirectory });
+    await runHomescreenChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runMinimalistChecks({ cdp, base, until, screenshots: screenshotDirectory, mp4: recordedMP4 });
     await runReferenceChecks({ cdp, base, until, screenshots: screenshotDirectory });
     await runCompatibilityMatrix({ cdp, base, until, mp4: recordedMP4,

@@ -19,8 +19,8 @@ const layouts = {
     <section class="bili-dyn-live-users"><h2 class="bili-dyn-live-users__title">正在直播 / Following</h2><div class="bili-dyn-live-users__item__uname">关注的 UP 主</div></section></aside>
     <div class="bili-dyn-home__main">${editor}${card("bili-dyn-item")}</div>
     <aside><section class="bili-dyn-topic-list"><h2 class="bili-dyn-topic-list__title">热门话题 / Trending</h2><div class="bili-dyn-topic-list__item__name">今日话题</div></section></aside></main>`,
-  video: `<main class="video-container">${card("video-desc-container")}<div class="bpx-player-container"><span id="player-control">▶</span><video></video></div></main>`,
-  space: `<main class="space-main"><nav class="space-navbar">投稿 · 动态</nav>${card("section-wrap")}</main>`,
+  video: `<main class="video-container">${card("video-desc-container")}<div class="bpx-player-container"><span id="player-control">▶</span><video></video></div><aside class="right-container"><section class="up-info-container"><h2>Creator profile</h2><p>Native creator information and actions</p></section><section class="video-pod">Related videos</section></aside></main>`,
+  space: `<main class="space-main"><nav class="space-navbar">投稿 · 动态</nav>${card("section-wrap")}<aside><section class="home-aside-section"><h2>Profile details</h2><p>Native profile sidebar</p></section></aside></main>`,
   search: `<main class="search-page"><section class="search-header"><input placeholder="搜索 / Search"></section>${card("user-item")}</main>`,
   article: `<main class="article-page">${card("article-container")}</main>`,
   opus: `<main class="opus-detail">${card("opus-detail-content")}<section class="opus-module-content"><p>图文内容</p></section></main>`,
@@ -47,6 +47,7 @@ export function compatibilityFixture(name) {
     #status {position:absolute;right:0;bottom:0;background:rgb(230,30,50);color:rgb(255,255,255);padding:0 4px}
     .native-status {color:rgb(230,30,50)} .progress-track {display:block;width:60%;height:3px;background:rgb(0,174,236)}
     .bpx-player-container {background:black;color:rgb(255,128,0);min-width:260px;min-height:180px}
+    bili-comments {display:block;max-width:1120px;margin:20px auto}
     .bili-header__bar {position:fixed;top:0;left:0;right:0;height:60px;z-index:1002;display:flex;gap:30px;align-items:center;padding:0 20px}
     .nav-search-panel {position:absolute;top:60px;left:200px;width:280px;display:none}
     .v-popover-content {display:none;position:absolute;right:20px;top:60px;padding:20px;width:200px}

@@ -4,7 +4,7 @@
     home: {
       layout: ".bili-feed4, .bili-feed4-layout, .recommended-container_floor-aside, .bili-header__channel",
       canvas: "#i_cecream, .bili-feed4, .bili-feed4-layout, .feed2, .recommended-container_floor-aside",
-      surfaces: ".bili-video-card__info, .video-card__info, .floor-single-card",
+      surfaces: ".bili-video-card__info, .video-card__info",
       inner: ".bili-video-card__info--bottom, .bili-video-card__info--tit"
     },
     dynamic: {
@@ -12,7 +12,7 @@
       canvas: ".bili-dyn-home, .bili-dyn-home--member, .bili-dyn-home--visitor, .bili-dyn-home__main, .bili-dyn-list",
       surfaces: `.bili-dyn-item, .bili-dyn-publishing, .bili-dyn-my-info, .bili-dyn-live-users,
         .bili-dyn-topic-list, .bili-dyn-up-list, .bili-dyn-list-tabs, .bili-dyn-sidebar,
-        .bili-dyn-recommend, .bili-dyn-banner`,
+        .bili-dyn-recommend`,
       inner: `.bili-dyn-item__main, .bili-dyn-item__header, .bili-dyn-item__body, .bili-dyn-item__footer,
         .bili-dyn-content, .bili-dyn-content__orig, .bili-dyn-publishing__content,
         .bili-dyn-publishing__input, .bili-dyn-publishing__text-area, .bili-dyn-publishing__title,
@@ -21,7 +21,7 @@
     video: {
       layout: ".video-container, #bilibili-player, .video-info-container",
       canvas: ".video-container, .left-container, .right-container, .video-page-container",
-      surfaces: `.video-info-container, .video-toolbar, .up-info-container, .video-pod,
+      surfaces: `.right-container, .video-info-container, .video-toolbar, .up-info-container, .video-pod,
         .video-page-card-small, .video-page-operator-card, .video-desc-container, #v_desc,
         .video-desc, .video-desc-v1, .video-desc-v2, .video-tag-container`,
       inner: ".desc-content, .desc-info, .video-info-detail, .video-info-title"
@@ -79,14 +79,13 @@
     .bili-popover__content, .bili-header__popover-content, .bili-dialog:not(:has(.bili-dialog__content)),
     .bili-popup:not(:has(.bili-popup__content)), .bili-popover:not(:has(.bili-popover__content)),
     .bili-header__popover:not(:has(.bili-header__popover-content)), .bili-tooltip, .bili-toast,
-    .nav-search-panel, .nav-search-content, .search-panel, .search-suggest, .search-result,
+    .nav-search-panel, .search-panel, .search-suggest,
     .search-popover, .v-popover-content, .user-card-m-exp, .van-dialog, .van-popover,
     .van-popup, .bui-dropdown-items, .bili-mini-content-wp, .ant-modal-content,
     .ant-popover-inner, .ant-dropdown-menu, .el-dialog, .el-popover, .el-dropdown-menu`;
   const comments = `.comment-container:not(:has(bili-comments)), #commentapp:not(:has(bili-comments)),
     #comment:not(:has(bili-comments)), .reply-warp:not(:has(bili-comments)),
     .reply-container:not(:has(bili-comments)), bili-comments`;
-  const shared = `.bili-header__channel, ${comments}, ${popovers}`;
   const primary = `h1, h2, h3, h4, h5, h6, p, .bili-rich-text, .bili-dyn-content__orig,
     .bili-dyn-title, .bili-dyn-title__text, .bili-dyn-content__text, .bili-dyn-card-video__title,
     .bili-dyn-live-users__title, .bili-dyn-topic-list__title, .bili-dyn-publishing__title,
@@ -103,12 +102,71 @@
     input[type="password"], input[type="email"], input[type="number"], textarea,
     select, [contenteditable="true"], [contenteditable=""]`;
   const palette = `
-    --bg1: transparent; --bg2: var(--bc-control-bg); --bg3: rgba(var(--bc-surface-rgb), .3);
-    --bg1_float: var(--bc-popup-bg); --bg2_float: var(--bc-control-bg);
-    --text1: var(--bc-text-color); --text2: var(--bc-secondary-color);
+    --bg1: transparent; --bg2: var(--bc-control-bg); --bg3: var(--bc-hover-bg);
+    --bg1_float: var(--bc-glass-bg-strong); --bg2_float: var(--bc-control-bg);
+    --text1: var(--bc-foreground, var(--bc-text-color)); --text2: var(--bc-secondary-color);
     --text3: var(--bc-secondary-color); --text4: var(--bc-disabled-color);
-    --line_regular: var(--bc-border); --line_light: var(--bc-border);`;
-
+    --line_regular: var(--bc-glass-border); --line_light: var(--bc-glass-border);`;
+  // A painted rim avoids adding border width to native boxes. Background blur
+  // lives in owned layers so native containing blocks and media stay untouched.
+  const material = (level) => `
+    background-color: var(--bc-glass-bg-${level}) !important; background-image: none !important;
+    border-color: var(--bc-glass-border); border-radius: var(--bc-glass-radius);
+    box-shadow: inset 0 0 0 1px var(--bc-glass-border), var(--bc-glass-shadow${level==='light'?'':'-'+level});`;
+  const glassMaterial=material('light');
+  const floating = popovers;
+  const navigation='.bili-header__bar, .bili-header__channel, .header-channel, .search-header, .search-sticky-header, .search-tabs, .space-navbar, .bili-dyn-list-tabs';
+  const tools='.palette-button-wrap, .fixed-tool-panel, .float-nav';
+  const homeCards='.bili-video-card, .video-card:has(> .video-card__info)';
+  const allContent=[comments,tools,'.bili-video-card__info,.video-card__info',...Object.values(profiles).map(p=>p.surfaces).filter(Boolean)].join(',');
+  function surfaceGroups(page) {
+    return {light:navigation,content:`${comments},${tools}${profiles[page]?.surfaces?', '+profiles[page].surfaces:''}${page==='home'?', '+homeCards:''}`,strong:popovers};
+  }
+  // Native elements retain every dimension, border width, font metric, layout,
+  // overflow rule and breakpoint. Only appearance is changed here.
+  function navigationCSS(scope) {
+    return `
+      ${scope} body .bili-header__bar {
+        ${palette} color: var(--bc-foreground, var(--bc-text-color));
+        ${glassMaterial}
+      }
+      ${scope} body .bili-header__bar :where(.left-entry-main,.left-entry,.right-entry) > li > a {
+        color: var(--bc-foreground, var(--bc-text-color)); text-shadow: var(--bc-text-shadow);
+      }
+      ${scope} body .bili-header__bar > a { color: var(--bc-foreground, var(--bc-text-color)); }
+      ${scope} body .bili-header__bar :where(.left-entry-main,.left-entry,.right-entry) > li > a:hover { color: var(--bc-link-color); }
+      ${scope} body .bili-header__bar :where(.right-entry__outside,.right-entry-text) { color: var(--bc-foreground, var(--bc-text-color)); }
+      ${scope} body .bili-header__bar :where(.nav-search-form,.center-search__bar) {
+        background: var(--bc-input-bg) !important; border-color: var(--bc-glass-border-hover);
+        border-radius: var(--bc-glass-radius); box-shadow: inset 0 0 0 1px var(--bc-glass-border);
+      }
+      ${scope} body .bili-header__bar .nav-search-content {
+        background: transparent !important; box-shadow: none;
+      }
+      ${scope} body .bili-header__bar :where(.nav-search-form,.nav-search-content) input {
+        color: var(--bc-foreground, var(--bc-text-color)); text-shadow: var(--bc-text-shadow);
+      }
+      ${scope} body .bili-header__bar input::placeholder { color: var(--bc-placeholder-color); }
+      ${scope} body .bili-header__bar :where(.nav-search-btn,.nav-search-form > button) {
+        background: transparent; color: var(--bc-foreground, var(--bc-text-color)); border-color: transparent;
+      }
+      ${scope} body :where(.bili-header__channel,.header-channel) { ${palette} color: var(--bc-foreground, var(--bc-text-color)); }
+      ${scope} body .bili-header__channel {
+        ${glassMaterial}
+      }
+      ${scope} body :where(.bili-header__channel,.header-channel) :where(
+        .channel-icons,.channel-items__left,.channel-items__right,.header-channel-fixed-left,
+        .header-channel-fixed-list,.header-channel-fixed-bottom-list,.header-channel-fixed-side-list
+      ) { background: transparent !important; box-shadow: none; }
+      ${scope} body :where(.bili-header__channel,.header-channel) :where(.channel-link,.channel-link__more,.channel-item) {
+        color: var(--bc-foreground, var(--bc-text-color)) !important; text-shadow: var(--bc-text-shadow);
+        border-color: transparent; border-radius: 7px; background: transparent !important; box-shadow: none;
+      }
+      ${scope} body :where(.bili-header__channel,.header-channel) :where(.channel-link,.channel-link__more,.channel-item):hover { background: var(--bc-hover-bg) !important; }
+      ${scope} body :where(.bili-header__channel,.header-channel) :where(.channel-link,.channel-link__more,.channel-item):is(.active,[aria-current="page"],[aria-selected="true"]) { background: var(--bc-selected-bg) !important; }
+      ${scope} body :where(.bili-header__channel,.header-channel) a { color: var(--bc-foreground, var(--bc-text-color)); }
+    `;
+  }
   function classify(url, matches = () => false) {
     const { hostname, pathname } = new URL(url);
     if (/^\/opus(?:\/|$)/.test(pathname)) return "opus";
@@ -123,117 +181,193 @@
     for (const name of ["dynamic", "space", "search", "opus", "article", "live", "video", "bangumi", "home"]) {
       if (matches(profiles[name].layout)) return name;
     }
-    return hostname === "www.bilibili.com" && pathname === "/" ? "home" : "other";
+    return hostname === "www.bilibili.com" && ["/", "/en", "/zh-Hans"].includes(pathname) ? "home" : "other";
   }
 
   const enabled = 'html[data-bc-enabled="true"]';
   const css = Object.entries(profiles).map(([name, profile]) => {
     const scope = `${enabled}[data-bc-page="${name}"] body`;
-    const surfaces = `${shared}${profile.surfaces ? `, ${profile.surfaces}` : ""}`;
+    const surfaces = `${comments}${profile.surfaces ? `, ${profile.surfaces}` : ""}`;
     const area = `${scope} :where(${surfaces})`;
     return `
-      ${profile.canvas ? `${scope} :is(${profile.canvas}) { background-color: transparent !important; background-image: none !important; }` : ""}
+      ${profile.canvas ? `${scope} :where(${profile.canvas}) { background: transparent !important; }` : ""}
       ${area} {
-        ${palette}
-        background-color: rgba(var(--bc-surface-rgb), var(--bc-surface-alpha)) !important;
-        background-image: none !important;
-        -webkit-backdrop-filter: blur(var(--bc-blur)) !important;
-        backdrop-filter: blur(var(--bc-blur)) !important;
-        color: var(--bc-text-color);
+        ${palette} ${material('content')}
+         color: var(--bc-foreground, var(--bc-text-color));
       }
-      ${area} :where(${surfaces}) {
-        background-color: transparent !important;
-        -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+      ${profile.inner ? `${area} :where(${profile.inner}) { background: transparent !important; box-shadow: none; }` : ""}
+      ${area} :where(${primary}):not(:where(${protectedNodes})), ${area}:where(${primary}) {
+        color: var(--bc-foreground, var(--bc-text-color)) !important; text-shadow: var(--bc-text-shadow);
       }
-      ${profile.inner ? `${area} :is(${profile.inner}) { background-color: transparent !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }` : ""}
-      ${area} :where(${primary}):not(:where(${protectedNodes})),
-      ${area}:where(${primary}) { color: var(--bc-text-color) !important; }
-      ${area} :where(${secondary}):not(:where(${protectedNodes})) { color: var(--bc-secondary-color) !important; }
-      ${area} a[href]:not(:where(${protectedNodes})):not(:has(img, svg, video)) { color: var(--bc-link-color); }
-      ${area} a[href]:not(:where(${protectedNodes})):not(:has(img, svg, video)):hover { color: var(--bc-link-color); text-decoration: underline; }
-      ${area} :is(${textInputs}):not(:where(${players}, :is(${players}) *)) {
-        color: var(--bc-text-color) !important; caret-color: var(--bc-text-color);
-        background-color: var(--bc-control-bg) !important;
-        border-color: var(--bc-border);
+      ${area} :where(${secondary}):not(:where(${protectedNodes})) { color: var(--bc-secondary-color) !important; text-shadow: var(--bc-text-shadow); }
+      ${area} a[href]:not(:where(${protectedNodes})):not(:has(img,svg,video)) { color: var(--bc-link-color); text-shadow: var(--bc-text-shadow); }
+      ${area} a[href]:not(:where(${protectedNodes})):hover { text-decoration: underline; }
+      ${area} :where(${textInputs}):not(:where(${players}, :is(${players}) *)) {
+        color: var(--bc-foreground, var(--bc-text-color)) !important; caret-color: var(--bc-foreground, var(--bc-text-color));
+        background: var(--bc-input-bg) !important; border-color: var(--bc-glass-border-hover);
+        box-shadow: inset 0 0 0 1px var(--bc-glass-border); text-shadow: var(--bc-text-shadow);
       }
-      ${area} :is(input, textarea)::placeholder {
-        color: var(--bc-placeholder-color) !important; opacity: 1;
-      }
-      ${area} :is(${textInputs}):focus-visible { outline: 2px solid var(--bc-focus); outline-offset: 2px; }
+      ${area} :where(input,textarea)::placeholder { color: var(--bc-placeholder-color); opacity: 1; }
+      ${area} :where(${textInputs}):focus-visible { outline: 2px solid var(--bc-focus); outline-offset: 2px; }
     `;
-  }).join("\n") + `
-    ${enabled} { background-color: #101927 !important; }
-    ${enabled} body { background-color: transparent !important; background-image: none !important; isolation: isolate !important; }
-    ${enabled}:not([data-bc-page="other"]) body > #app,
-    ${enabled}:not([data-bc-page="other"]) body > #i_cecream { background-color: transparent !important; }
+  }).join("\n") + navigationCSS(enabled) + `
+    ${enabled} { background-color: #101927; }
+    /* The fixed wallpaper is an owned, out-of-flow paint layer. */
+    ${enabled} body { background: transparent !important; }
+    ${enabled}:not([data-bc-page="other"]) body > :where(#app,#i_cecream) { background: transparent !important; }
     ${enabled} #bc-theme-wallpaper {
-      all: initial !important; display: block !important; position: fixed !important;
-      inset: 0 !important; z-index: -1 !important; pointer-events: none !important;
-      background-color: #101927 !important; background-position: center !important;
-      background-size: cover !important; background-repeat: no-repeat !important;
+      display: block; position: fixed; inset: 0; z-index: -2; pointer-events: none;
+      background-color: #101927; background-position: center; background-size: cover; background-repeat: no-repeat;
     }
-    ${enabled} #bc-theme-wallpaper::after {
-      content: ""; position: absolute; inset: 0;
-      background-color: rgba(var(--bc-surface-rgb), var(--bc-wallpaper-veil));
+    ${enabled}[data-bc-coverage="all"] body :where(.bili-header,.home-container) { background-color: transparent !important; }
+    ${enabled}[data-bc-material] body :where(${navigation}) { ${palette} ${material('light')} color: var(--bc-foreground, var(--bc-text-color)); }
+    ${enabled} body :where(${tools}) { ${palette} ${material('content')} color: var(--bc-foreground, var(--bc-text-color)); }
+    ${enabled}[data-bc-material] body :where(${floating}) { ${palette} ${material('strong')} color: var(--bc-foreground, var(--bc-text-color)); }
+    ${enabled} body :where(${floating}) :where(input,textarea) {
+      color: var(--bc-foreground, var(--bc-text-color)); background: var(--bc-input-bg); border-color: var(--bc-glass-border-hover);
+      box-shadow: inset 0 0 0 1px var(--bc-glass-border); text-shadow: var(--bc-text-shadow);
     }
-    ${enabled}[data-bc-coverage="all"] body :is(.bili-header, .bili-header__banner, .home-container) {
-      background-color: transparent !important;
-    }
-    ${enabled}[data-bc-page="dynamic"] .bili-dyn-publishing :is(${textInputs}),
-    ${enabled} :is(.reply-box, .reply-box-textarea, .comment-send) :is(${textInputs}) {
-      background-color: transparent !important; box-shadow: none;
-    }
+    ${enabled} body :where(${floating}) :where(p,a,li,label,input) { text-shadow: var(--bc-text-shadow); }
     ${enabled}[data-bc-page="dynamic"] .bili-dyn-publishing [contenteditable][data-placeholder]:empty::before {
-      color: var(--bc-placeholder-color) !important; opacity: 1;
+      color: var(--bc-placeholder-color) !important; text-shadow: var(--bc-text-shadow);
     }
-    ${enabled} body :is(${popovers}) {
-      background-color: var(--bc-popup-bg) !important; border-color: var(--bc-border);
+    ${enabled} body :where(.bili-modal-mask,.bili-dialog-mask,.bili-popup-mask,.bili-mask,.v-modal,.ant-modal-mask,.el-overlay,.van-overlay,.login-mask,.bili-mini-mask),
+    ${enabled} body dialog::backdrop { background: rgba(0,0,0,.24); }
+    ${enabled} body :where(.bili-video-card,.bili-video-card__wrap,.feed-card) {
+      background: transparent !important; box-shadow: none;
     }
-    ${enabled} body :is(${popovers}) :is(${popovers}) { background-color: transparent !important; }
-    ${enabled} body :is(.bili-modal-mask, .bili-dialog-mask, .bili-popup-mask, .bili-mask,
-      .v-modal, .ant-modal-mask, .el-overlay, .van-overlay, .login-mask, .bili-mini-mask),
-    ${enabled} body dialog::backdrop { background: rgba(4, 9, 18, .4) !important; backdrop-filter: none !important; }
-    ${enabled} body :is(.comment-container, #commentapp, #comment, .reply-warp, .reply-container):has(bili-comments) {
-      background-color: transparent !important; backdrop-filter: none !important;
+    ${enabled} body :where(.bili-video-card__info,.video-card__info) { ${material('content')} color: var(--bc-foreground, var(--bc-text-color)); }
+    ${enabled} body :where(.bili-video-card__info--tit,.video-card__info--title) a { color: var(--bc-foreground, var(--bc-text-color)) !important; text-shadow: var(--bc-text-shadow); }
+    /* Only the native metadata strip receives a localized contrast gradient. */
+    ${enabled} body .bili-video-card__stats { background: linear-gradient(transparent,rgba(0,0,0,.5)); color: white; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
+    ${enabled} :where(#bc-theme-header-glass,#bc-theme-channel-glass,.bc-theme-popover-glass,.bc-theme-surface-glass) {
+      display: none; position: fixed; pointer-events: none; background: transparent;
+      backdrop-filter: var(--bc-glass-filter); -webkit-backdrop-filter: var(--bc-glass-filter);
     }
-    ${enabled} body bili-comments { display: block; }
-    ${enabled} body .bili-header__bar { ${palette} background-color: transparent !important; isolation: isolate; }
-    ${enabled} body .bili-header__bar .left-entry-main > li > a { color: var(--bc-text-color); }
-    ${enabled} body .bili-header__bar :is(.nav-search-form, .nav-search-input) {
-      color: var(--bc-text-color); background-color: var(--bc-control-bg) !important;
+    ${enabled} .bc-theme-surface-glass[data-bc-level="content"] { backdrop-filter: var(--bc-glass-filter-content); -webkit-backdrop-filter: var(--bc-glass-filter-content); }
+    ${enabled} :where(.bc-theme-popover-glass,.bc-theme-surface-glass[data-bc-level="strong"]) { backdrop-filter: var(--bc-glass-filter-strong); -webkit-backdrop-filter: var(--bc-glass-filter-strong); }
+    @supports not (backdrop-filter: blur(1px)) {
+      ${enabled} {
+        --bc-glass-bg-light: var(--bc-glass-fallback-bg) !important;
+        --bc-glass-bg-content: var(--bc-glass-fallback-bg) !important;
+        --bc-glass-bg-strong: var(--bc-glass-fallback-bg) !important;
+      }
+      ${enabled} :where(#bc-theme-header-glass,#bc-theme-channel-glass,.bc-theme-popover-glass,.bc-theme-surface-glass) { backdrop-filter: none; -webkit-backdrop-filter: none; }
     }
-    ${enabled} body .bili-header__bar .nav-search-input::placeholder { color: var(--bc-placeholder-color); opacity: 1; }
-    ${enabled}[data-bc-material="glass"] body .bili-header__bar :is(.v-popover-content, .nav-search-panel, .nav-search-content) {
-      -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+    @media (prefers-reduced-transparency: reduce) {
+      ${enabled} {
+        --bc-glass-bg-light: var(--bc-glass-fallback-bg) !important;
+        --bc-glass-bg-content: var(--bc-glass-fallback-bg) !important;
+        --bc-glass-bg-strong: var(--bc-glass-fallback-bg) !important;
+      }
+      ${enabled} :where(#bc-theme-header-glass,#bc-theme-channel-glass,.bc-theme-popover-glass,.bc-theme-surface-glass) { backdrop-filter: none; -webkit-backdrop-filter: none; }
     }
-    ${enabled} body :is(#bc-theme-header-glass, #bc-theme-channel-glass, .bc-theme-popover-glass) {
-      all: initial !important; display: none !important; position: fixed !important;
-      box-sizing: border-box !important; pointer-events: none !important;
-      -webkit-backdrop-filter: blur(var(--bc-blur)) !important; backdrop-filter: blur(var(--bc-blur)) !important;
-      background-color: rgba(var(--bc-surface-rgb), var(--bc-header-alpha)) !important;
+    /* Header popovers use independent external material, including fallback.
+       Search inside a floating header and nested popup bodies never blur twice. */
+    ${enabled}[data-bc-material] body :where(${allContent},${navigation},${floating}) :where(${allContent}),
+    ${enabled}[data-bc-material] body :where(${floating}) :where(${floating}) {
+      background: transparent !important; box-shadow: none;
     }
-    ${enabled} body .bc-theme-popover-glass { background-color: transparent !important; }
-    ${enabled}[data-bc-material="clear"] body .bili-header__bar { background-color: transparent !important; }
+    ${enabled} body :where(${textInputs}):not(:where(${players}, :is(${players}) *)) {
+      background-color: var(--bc-input-bg) !important; border-color: var(--bc-glass-border-hover);
+      color: var(--bc-foreground, var(--bc-text-color)); box-shadow: inset 0 0 0 1px var(--bc-glass-border);
+    }
+    ${enabled} body :where(${textInputs})::placeholder { color: var(--bc-placeholder-color); opacity: 1; }
+    ${enabled} body :where(${textInputs}):focus-visible { outline: 2px solid var(--bc-focus); outline-offset: 2px; border-color: var(--bc-glass-border-hover); }
+    ${enabled} body :where(${floating},${tools}):hover { border-color: var(--bc-glass-border-hover); box-shadow: inset 0 0 0 1px var(--bc-glass-border-hover), var(--bc-glass-shadow-strong); }
+    ${enabled} body .palette-button-wrap > :where(button,.top-btn,.roll-btn) {
+      background-color: var(--bc-input-bg); color: var(--bc-foreground, var(--bc-text-color)); border-color: var(--bc-glass-border);
+    }
+    ${enabled} body .palette-button-wrap > :where(button,.top-btn,.roll-btn):hover { background-color: var(--bc-hover-bg); border-color: var(--bc-glass-border-hover); }
+    /* Home keeps native flow, but paints one coherent card rather than a
+       separate rounded pill beneath each image. Images remain above the frost. */
+    ${enabled}[data-bc-page="home"] body :where(${homeCards}) {
+      ${palette} ${material('content')} border-radius: 10px;
+      box-shadow: inset 0 0 0 1px var(--bc-glass-border), var(--bc-glass-shadow);
+    }
+    ${enabled}[data-bc-page="home"] body :where(${homeCards}) :is(.bili-video-card__info,.video-card__info) {
+      background: transparent !important; border-color: transparent; border-radius: 0; box-shadow: none !important;
+    }
+    /* Native category padding still reserves exactly the same space. The owned
+       material below follows the union of its real groups, not the full wrapper. */
+    ${enabled}[data-bc-page="home"] body :is(.bili-header__channel,.header-channel) {
+      background: transparent !important; border-color: transparent !important; border-radius: 0; box-shadow: none !important;
+    }
+    ${enabled}[data-bc-page="home"] body :is(.bili-header__channel,.header-channel) :is(.channel-link,.channel-link__more,.channel-item) {
+      border-color: transparent !important; box-shadow: none !important;
+    }
+    ${enabled}[data-bc-page="home"] :is(.bc-theme-surface-glass,#bc-theme-channel-glass)[data-bc-surface-kind="categories"] {
+      ${material('light')}
+    }
+    ${enabled}[data-bc-page="home"] body .recommended-swipe .carousel-footer {
+      background: var(--bc-glass-bg-content) !important; color: var(--bc-foreground, var(--bc-text-color)); box-shadow: none;
+    }
+    ${enabled}[data-bc-page="home"] body .recommended-swipe .carousel-footer-mask {
+      background: linear-gradient(transparent,var(--bc-glass-bg-content)) !important;
+    }
+    ${enabled}[data-bc-page="home"] body .recommended-swipe .carousel-footer :where(p,a,.carousel-footer-title,.carousel-footer-subtitle) {
+      color: var(--bc-foreground, var(--bc-text-color)); text-shadow: var(--bc-text-shadow);
+    }
+    ${enabled}[data-bc-page="home"][data-bc-material="clear"] body :where(${homeCards}) { box-shadow: none; }
+    /* Exactly one search shell. Native #nav-searchform and input specificity
+       previously left a pale outer form and a dark rectangle behind its text. */
+    ${enabled}[data-bc-page="home"] body .bili-header__bar :is(#nav-searchform,.nav-search-form,.center-search__bar:not(:has(#nav-searchform,.nav-search-form))) {
+      background: var(--bc-input-bg) !important; border-color: var(--bc-glass-border-hover);
+      box-shadow: inset 0 0 0 1px var(--bc-glass-border); color: var(--bc-foreground, var(--bc-text-color));
+    }
+    ${enabled}[data-bc-page="home"] body .bili-header__bar :is(.center-search__bar:has(#nav-searchform,.nav-search-form),.nav-search-content,.nav-search-input) {
+      background: transparent !important; border-color: transparent !important; box-shadow: none !important;
+    }
+    ${enabled}[data-bc-page="home"] body .bili-header__bar :is(#nav-searchform,.nav-search-form) input {
+      background: transparent !important; color: var(--bc-foreground, var(--bc-text-color)) !important; box-shadow: none !important;
+    }
+    ${enabled}[data-bc-page="home"] body .bili-header__bar :is(#nav-searchform,.nav-search-form) input::placeholder { color: var(--bc-placeholder-color) !important; }
+    ${enabled}[data-bc-page="home"] body .bili-header__bar :is(#nav-searchform,.nav-search-form):focus-within {
+      outline: 2px solid var(--bc-focus); outline-offset: 2px; border-color: var(--bc-glass-border-hover);
+    }
+    ${enabled}[data-bc-page="home"] body .bili-header__bar :is(#nav-searchform,.nav-search-form) input:focus-visible { outline: none; }
+    @media (prefers-reduced-motion: no-preference) {
+      ${enabled} body :where(.channel-link,.channel-item,.nav-search-form) { transition: background-color .14s ease, border-color .14s ease; }
+    }
+    @media (prefers-reduced-motion: reduce) { ${enabled} body :where(.channel-link,.channel-item,.nav-search-form) { transition: none; } }
   `;
-
+  async function sampleBackdrop(source) {
+    try {
+      const image = typeof source === "string" ? new Image() : source;
+      if (typeof source === "string") { image.src = source; await image.decode(); }
+      const canvas = document.createElement("canvas"); canvas.width = 24; canvas.height = 24;
+      const context = canvas.getContext("2d", {willReadFrequently:true});
+      context.drawImage(image,0,0,24,24);
+      const {data}=context.getImageData(0,0,24,24); const sums=[0,0,0],samples=[];
+      for(let i=0;i<data.length;i+=4) if(data[i+3]>128) {
+        const rgb=[data[i],data[i+1],data[i+2]];
+        for(let c=0;c<3;c++)sums[c]+=rgb[c];
+        samples.push(rgb);
+      }
+      if(!samples.length)return undefined;
+      samples.sort((a,b)=>(a[0]*.2126+a[1]*.7152+a[2]*.0722)-(b[0]*.2126+b[1]*.7152+b[2]*.0722));
+      // Protect text against bright/dark wallpaper regions as well as its mean.
+      return {mean:sums.map(v=>Math.round(v/samples.length)),dark:samples[Math.floor((samples.length-1)*.05)],bright:samples[Math.floor((samples.length-1)*.95)]};
+    } catch { return undefined; }
+  }
   const shadowCSS = `
     :host { ${palette} }
-    :host(bili-comments) { background-color: rgba(var(--bc-surface-rgb), var(--bc-surface-alpha)) !important; }
     :is(#contents, #feed, #commentbox, #editor, #input, .reply-content, .comment-content, .content) {
-      color: var(--bc-text-color) !important; background-color: transparent !important;
+      color: var(--bc-foreground, var(--bc-text-color)) !important; background-color: transparent !important;
     }
-    :is(#comment-text, .rich-text, .text, .user-name) { color: var(--bc-text-color) !important; }
+    :is(#comment-text, .rich-text, .text, .user-name) { color: var(--bc-foreground, var(--bc-text-color)) !important; text-shadow: var(--bc-text-shadow); }
     :is(.pubdate, .time, .sub-reply-info, .reply-info) { color: var(--bc-secondary-color) !important; }
     a[href] { color: var(--bc-link-color); }
     :is(textarea, input:not([type]), input[type="text"], [contenteditable="true"], #input) {
-      background-color: transparent !important; color: var(--bc-text-color) !important;
-      caret-color: var(--bc-text-color); border-color: var(--bc-border);
+      background-color: var(--bc-input-bg) !important; color: var(--bc-foreground, var(--bc-text-color)) !important;
+      caret-color: var(--bc-foreground, var(--bc-text-color)); border-color: var(--bc-glass-border-hover);
+      box-shadow: inset 0 0 0 1px var(--bc-glass-border);
     }
     :is(input, textarea)::placeholder { color: var(--bc-placeholder-color) !important; opacity: 1; }
     :is(input, textarea, [contenteditable="true"]):focus-visible { outline: 2px solid var(--bc-focus); }
     #limit-mask-wall::before { background: linear-gradient(transparent, var(--bc-popup-bg)) !important; }
     #limit-mask-wall::after { background: var(--bc-popup-bg) !important; }
   `;
-  globalThis.BiliThemePage = Object.freeze({ profiles, classify, css, shadowCSS,
+  globalThis.BiliThemePage = Object.freeze({ profiles, classify, css, shadowCSS, glassMaterial, navigationCSS, sampleBackdrop,surfaceGroups,
     layoutSelector: Object.values(profiles).map((p) => p.layout).filter(Boolean).join(", ") });
 })();

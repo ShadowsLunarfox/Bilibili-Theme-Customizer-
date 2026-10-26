@@ -56,22 +56,24 @@
           <section class="group" aria-labelledby="material-title">
             <h2 id="material-title" data-i18n="material">界面效果</h2>
             <div class="material-switch">
-              <input type="radio" name="material" id="material-glass" value="glass" checked><label for="material-glass" data-i18n="glass">毛玻璃</label>
+              <input type="radio" name="material" id="material-glass" value="glass" checked><label for="material-glass" data-i18n="glass">磨砂玻璃</label>
               <input type="radio" name="material" id="material-clear" value="clear"><label for="material-clear" data-i18n="clear">透明</label>
             </div>
             <div class="range-row"><label for="opacity" data-i18n="opacity">玻璃浓度</label><output id="opacity-value" for="opacity">58%</output><input name="opacity" id="opacity" type="range" min="0" max="90" value="58"></div>
-            <div class="range-row"><label for="blur" data-i18n="blur">模糊强度</label><output id="blur-value" for="blur">14 px</output><input name="blur" id="blur" type="range" min="0" max="30" value="14"></div>
+            <div class="range-row"><label for="blur" data-i18n="blur">模糊强度</label><output id="blur-value" for="blur">18 px</output><input name="blur" id="blur" type="range" min="0" max="30" value="18"></div>
             <div class="accent-row"><label for="accent" data-i18n="accent">点缀色</label><input name="accent" id="accent" type="color" value="#63d5ff"></div>
             <div class="accent-row"><label for="text-color" data-i18n="textColor">网页字体颜色</label><input name="textColor" id="text-color" type="color" value="#ffffff"></div>
+            <p class="hint" data-i18n="textContrastHint">壁纸明亮时自动加强玻璃底色，保持文字清晰并保留所选颜色。</p>
+            <div class="reference-preset">
+              <button id="apply-reference" type="button" data-i18n="referencePreset">应用玻璃配色</button>
+              <p class="hint" data-i18n="referenceHint">应用浅色玻璃与粉色点缀，保留原站布局、壁纸与筛选选择。</p>
+            </div>
+            <div id="appearance-options" class="minimalist-options"></div>
           </section>
 
           <section class="group" aria-labelledby="minimalist-title">
-            <h2 id="minimalist-title" data-i18n="minimalist">极简模式</h2>
-            <p class="hint" data-i18n="minimalistHint">仅优化首页；关闭后恢复原布局，不改变原有主题和导航设置。</p>
-            <div class="reference-preset">
-              <button id="apply-reference" type="button" data-i18n="referencePreset">应用参考图 · 液态玻璃</button>
-              <p class="hint" data-i18n="referenceHint">保留站点横幅和轮播，应用浅色玻璃与粉色点缀；不更换壁纸或重置导航选择。</p>
-            </div>
+            <h2 id="minimalist-title" data-i18n="minimalist">首页筛选</h2>
+            <p class="hint" data-i18n="minimalistHint">仅隐藏明确选择的内容；网格、尺寸与响应式断点始终由哔哩哔哩控制。</p>
             <div id="minimalist-options" class="minimalist-options"></div>
             <details class="minimalist-category-picker">
               <summary data-i18n="minimalistCategories">选择精简频道中显示的分类</summary>
@@ -97,6 +99,7 @@
     </form>
   </main>
   <script src="settings.js" defer></script>
+  <script src="theme.js" defer></script>
   <script src="popup.js" defer></script>
 </body>
 </html>

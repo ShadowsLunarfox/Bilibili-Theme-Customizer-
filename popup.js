@@ -4,19 +4,20 @@
     zh: {
       appTitle: "B哩B哩主题 / Bilibili Theme Customizer", close: "关闭", enabled: "启用主题", language: "语言",
       languageAuto: "跟随浏览器",
-      referencePreset: "应用参考图 · 液态玻璃",
-      referenceHint: "保留站点横幅和轮播，应用浅色玻璃与粉色点缀；不更换壁纸或重置导航选择。",
-      minimalist: "极简模式", minimalistHint: "仅优化首页；关闭后恢复原布局，不改变原有主题和导航设置。可独立于主题启用。",
+      referencePreset: "应用玻璃配色",
+      referenceHint: "仅调整浅色玻璃与粉色点缀，不修改官方布局、壁纸或筛选选择。",
+      minimalist: "首页筛选", minimalistHint: "只隐藏明确选中的内容；网格、尺寸和响应断点始终由哔哩哔哩控制。",
       minimalistCategories: "选择精简频道中显示的分类",
-      minimalistCategoriesHint: "仅在精简频道开启时生效；原有导航隐藏设置优先。更多菜单保留原生交互。",
+      minimalistCategoriesHint: "仅在频道筛选开启时生效；保留官方排布，更多菜单保持原生交互。",
       background: "桌面背景", previewTitle: "内容面板", previewSample: "主题设置预览",
       chooseImage: "浏览...", removeImage: "移除", imageHint: "支持图片、GIF 和 MP4，最大 20 MB；GIF 与视频保持动态，视频静音循环播放，文件只保存在本机。",
       coverage: "应用范围", coverageAll: "全元素", coveragePanels: "内容面板",
       coverageNoteAll: "清除页面底色，导航和内容面板显示毛玻璃。",
       coverageNotePanels: "为导航和内容面板添加玻璃效果。",
-      material: "界面效果", glass: "毛玻璃", clear: "透明",
+      material: "界面效果", glass: "磨砂玻璃", clear: "透明",
       opacity: "玻璃浓度", blur: "模糊强度", accent: "点缀色",
       textColor: "网页字体颜色", cleanup: "导航与按钮",
+      textContrastHint: "壁纸明亮时自动加强玻璃底色，保持文字清晰并保留所选颜色。",
       cleanupHint: "勾选要隐藏的按钮；各项可以独立恢复。", hiddenCount: "已隐藏",
       hideAll: "一键隐藏全部", showAll: "一键显示全部",
       hideGroup: "隐藏本组", showGroup: "显示本组",
@@ -36,19 +37,20 @@
     en: {
       appTitle: "B哩B哩主题 / Bilibili Theme Customizer", close: "Close", enabled: "Enable theme", language: "Language",
       languageAuto: "Auto",
-      referencePreset: "Apply Reference · Liquid Glass",
-      referenceHint: "Keeps the site's banner and carousel. Applies light glass and pink accents without replacing wallpaper or resetting navigation choices.",
-      minimalist: "Minimalist Mode", minimalistHint: "Homepage only. Turn off to restore the layout without changing theme or navigation preferences. Works independently of the theme.",
-      minimalistCategories: "Choose visible compact categories",
-      minimalistCategoriesHint: "Applies with Compact Categories enabled. Existing navigation hiding takes priority. More keeps its native menu.",
+      referencePreset: "Apply Glass Colors",
+      referenceHint: "Applies light glass and pink accents. Keeps native layout, wallpaper and filtering choices.",
+      minimalist: "Homepage Filters", minimalistHint: "Hide explicitly selected content. Bilibili always controls the grid, sizing and responsive breakpoints.",
+      minimalistCategories: "Choose visible categories",
+      minimalistCategoriesHint: "Applies with category filtering enabled. Native layout and the More menu are preserved.",
       background: "Desktop background", previewTitle: "Content panel", previewSample: "Theme preview",
       chooseImage: "Browse...", removeImage: "Remove", imageHint: "Images, GIF and MP4 up to 20 MB. GIFs and videos stay animated; videos loop silently. Files stay on this device.",
       coverage: "Apply to", coverageAll: "All elements", coveragePanels: "Content panels",
       coverageNoteAll: "Clear page backgrounds and add glass to navigation and panels.",
       coverageNotePanels: "Add glass to navigation and content panels.",
-      material: "Appearance", glass: "Frosted glass", clear: "Transparent",
-      opacity: "Glass opacity", blur: "Blur strength", accent: "Accent color",
+      material: "Appearance", glass: "Frosted Glass", clear: "Transparent",
+      opacity: "Glass strength", blur: "Blur strength", accent: "Accent color",
       textColor: "Page text color", cleanup: "Navigation and buttons",
+      textContrastHint: "Glass tint strengthens over bright wallpaper to keep text readable. Your chosen color stays saved.",
       cleanupHint: "Check buttons to hide; restore each one independently.", hiddenCount: "hidden",
       hideAll: "Hide all", showAll: "Show all",
       hideGroup: "Hide group", showGroup: "Show group",
@@ -125,6 +127,7 @@
   for (const [entries, target] of [[BC.MINIMALIST_OPTIONS, "#minimalist-options"],
     [BC.MINIMALIST_CATEGORIES, "#minimalist-categories"]]) {
     for (const entry of entries) {
+      if (entry.retired) continue;
       const label = document.createElement("label");
       label.className = "option-row";
       const input = document.createElement("input");
@@ -132,7 +135,7 @@
       input.name = entry.field || entry.key;
       const text = document.createElement("span");
       label.append(input, text);
-      document.querySelector(target).append(label);
+      document.querySelector(entry.visual ? "#appearance-options" : target).append(label);
       minimalistLabels.push({ entry, input, text });
     }
   }
@@ -143,6 +146,8 @@
   let sequence = 0;
   let error = "";
   let lastBackgroundUrl = null;
+  let previewTone;
+  let previewToneGeneration = 0;
   let locale = browserLanguage;
 
   function t(key) { return copy[locale][key] || copy[locale].SAVE_ERROR; }
@@ -211,11 +216,20 @@
       : background.name === "原有背景" ? t("previousImage")
       : !background.name || background.name === "自定义背景" ? t("customImage") : background.name;
     if (lastBackgroundUrl !== background.dataUrl) {
+      previewTone = undefined;
+      const toneGeneration = ++previewToneGeneration;
+      const acceptTone = (tone) => {
+        if (!tone || toneGeneration !== previewToneGeneration) return;
+        previewTone = tone; render();
+      };
+      previewVideo.onloadeddata = null;
+      if (background.dataUrl.startsWith("data:image/")) void BiliThemePage.sampleBackdrop(background.dataUrl).then(acceptTone);
       const video = background.dataUrl.startsWith("data:video/mp4;base64,");
       preview.style.backgroundImage = background.dataUrl && !video
-        ? `url("${background.dataUrl}")` : "linear-gradient(125deg, #c1e4e4, #d1ccf1 55%, #ecdbc8)";
+        ? `url("${background.dataUrl}")` : "linear-gradient(135deg, var(--preview-start), var(--preview-mid) 48%, var(--preview-end))";
       previewVideo.hidden = !video;
       if (video) {
+        previewVideo.onloadeddata = () => { void BiliThemePage.sampleBackdrop(previewVideo).then(acceptTone); };
         previewVideo.src = background.dataUrl;
       } else if (previewVideo.hasAttribute("src")) {
         previewVideo.pause();
@@ -225,14 +239,21 @@
       lastBackgroundUrl = background.dataUrl;
     }
     syncPreviewPlayback(settings.enabled);
-    const tokens = BC.tokens(settings);
+    const tokens = BC.tokens(settings,previewTone);
+    preview.dataset.material = settings.material;
+    preview.style.setProperty("--preview-start", tokens["--bc-wallpaper-start"]);
+    preview.style.setProperty("--preview-mid", tokens["--bc-wallpaper-mid"]);
+    preview.style.setProperty("--preview-end", tokens["--bc-wallpaper-end"]);
     preview.style.setProperty("--preview-alpha", settings.enabled
-      ? tokens["--bc-surface-alpha"] : "0.92");
+      ? tokens["--bc-glass-opacity"] : "0.92");
+    preview.style.setProperty("--preview-bg", settings.enabled ? tokens["--bc-glass-bg-content"] : "rgba(20,24,32,.92)");
     preview.style.setProperty("--preview-blur", settings.enabled ? tokens["--bc-blur"] : "0px");
     preview.style.setProperty("--preview-accent", settings.accent);
-    preview.style.setProperty("--preview-text-color", settings.textColor);
+    preview.style.setProperty("--preview-text-color", tokens["--bc-foreground"]);
     preview.style.setProperty("--preview-text-shadow", tokens["--bc-text-shadow"]);
-    preview.style.setProperty("--preview-surface-rgb", tokens["--bc-surface-rgb"]);
+    preview.style.setProperty("--preview-surface-rgb", tokens["--bc-glass-tint"]);
+    preview.style.setProperty("--preview-border", tokens["--bc-glass-border"]);
+    preview.style.setProperty("--preview-shadow", tokens["--bc-glass-shadow-content"]);
     preview.style.setProperty("--preview-veil", settings.enabled ? tokens["--bc-wallpaper-veil"] : "0");
     document.querySelector("#preview-label").textContent = t(settings.enabled ? "previewLabel" : "paused");
     status.classList.toggle("error", Boolean(error));
@@ -400,6 +421,8 @@
   });
   document.addEventListener("visibilitychange", () => syncPreviewPlayback());
   window.addEventListener("pagehide", () => {
+    previewToneGeneration += 1;
+    previewVideo.onloadeddata = null;
     unsubscribe();
     client.dispose();
     previewVideo.pause();

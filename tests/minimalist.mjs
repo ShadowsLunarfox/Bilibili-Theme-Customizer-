@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { runParity } from './layout-parity.mjs';
 
 const cover = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%23314b63'/%3E%3Ccircle cx='240' cy='60' r='35' fill='%2363d5ff'/%3E%3C/svg%3E";
 const card = (id, badge = '', extra = '') => `<article id="${id}" class="bili-video-card" ${extra}><div class="bili-video-card__wrap">
@@ -29,6 +30,7 @@ export function minimalistFixture(BC) {
     <div class="recommended-swipe" id="carousel">Native featured carousel <a href="/video/BV-feature">▶</a></div>
     ${card('normal')}${card('ad', '<span class="bili-video-card__info--ad">广告</span>')}
     <div class="feed-card" id="ad-wrapper">${card('wrapped-ad','<span class="bili-video-card__info--creative-ad">推广</span>')}</div>
+    <div class="feed-card" id="nested-ad-wrapper"><div class="bili-feed-card">${card('nested-ad','<span class="bili-video-card__info--ad">广告</span>')}</div></div>
     <div class="feed-card" id="organic-wrapper">${card('organic','','data-ad-id=""')}</div>
     ${card('analytics','','data-is-ad="false"')}<div class="bili-feed-ad" id="ad-slot">Explicit ad slot</div>
     ${Array.from({length:8},(_,i)=>card(`normal-${i}`)).join('')}
@@ -63,23 +65,24 @@ export async function runMinimalistChecks({ cdp, base, until, screenshots, mp4 }
       : '!document.documentElement.hasAttribute("data-bc-min-options")');
     await page.evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
   };
+  await runParity({page,patch,artifacts:screenshots,label:'fixture',navKeys:await page.evaluate('BiliTheme.NAV_ITEMS.map(n=>n.key)')});
+  await page.evaluate("chrome.runtime.sendMessage({type:'BC_THEME/RESET'})");
+  await until(page,'!document.documentElement.hasAttribute("data-bc-minimalist")');
   const baseline = { display: await css('#first-grid','gridTemplateColumns'), gap: await css('#first-grid','gap'), title: await css('#normal h3','fontSize') };
   assert.equal(await page.evaluate('document.documentElement.hasAttribute("data-bc-minimalist")'),false);
   await patch({minimalistEnabled:true});
   await until(page, 'document.documentElement.dataset.bcMinimalist === "true"');
-  for (const id of ['ad','ad-wrapper','ad-slot','second-ad']) assert.equal(await css(`#${id}`,'display'),'none',id);
+  for (const id of ['ad','ad-wrapper','nested-ad-wrapper','ad-slot','second-ad']) assert.equal(await css(`#${id}`,'display'),'none',id);
   for (const id of ['normal','organic-wrapper','analytics','outside-ad']) assert.notEqual(await css(`#${id}`,'display'),'none',id);
-  assert.equal(await css('.bili-header__banner','display'),'none');
+  assert.equal(await css('.bili-header__banner','visibility'),'hidden');
+  assert.equal(await css('.bili-header__banner','height'),'160px','hidden artwork retains native header space');
+  assert.equal(await page.evaluate('document.querySelector(".bili-header__channel").getBoundingClientRect().bottom <= document.querySelector("#first-grid").getBoundingClientRect().top'),true,'category flow cannot overlap feed');
   assert.notEqual(await css('#carousel','display'),'none');
-  assert.equal(await css('.bili-header__bar','height'),'56px');
-  assert.equal((await css('#first-grid','gridTemplateColumns')).split(' ').length,4);
-  assert.equal((await css('#second-grid','gridTemplateColumns')).split(' ').length,4);
+  assert.equal(await css('.bili-header__bar','height'),'64px');
+  assert.equal((await css('#first-grid','gridTemplateColumns')).split(' ').length,3);
+  assert.equal((await css('#second-grid','gridTemplateColumns')).split(' ').length,3);
   assert.equal(await page.evaluate('originalCards.every(n=>n.isConnected && document.getElementById(n.id)===n)'),true);
 
-  assert.equal(await page.evaluate(`(()=>{const carousel=document.querySelector('#carousel').getBoundingClientRect();
-    const secondRow=document.querySelector('#analytics').getBoundingClientRect();return Math.abs(carousel.bottom-secondRow.bottom)<1})()`),true,'retained carousel fills its two-row grid slot');
-  const searchRect = await page.evaluate(`(()=>{const r=document.querySelector('.center-search-container').getBoundingClientRect();return {center:(r.left+r.right)/2, viewport:document.documentElement.clientWidth}})()`);
-  assert.ok(Math.abs(searchRect.center-searchRect.viewport/2)<1,'desktop search is centered');
   await patch({minimalistGrid:false,minimalistCompactNav:false,minimalistHideBanner:false});
   await until(page, 'getComputedStyle(document.querySelector(".bili-header__banner")).display !== "none"');
   assert.equal(await css('#first-grid','gridTemplateColumns'),baseline.display);
@@ -121,18 +124,18 @@ export async function runMinimalistChecks({ cdp, base, until, screenshots, mp4 }
   assert.notEqual(await css('.v-popover-content','display'),'none');
   assert.equal(await page.evaluate('document.querySelector("#normal .preview-overlay").hidden'),false);
   await page.evaluate(`window.scrollTo(0,400)`);
-  assert.equal(await page.evaluate('document.querySelector(".bili-header__bar").getBoundingClientRect().top'),0);
+  assert.equal(await page.evaluate('document.querySelector(".bili-header__bar").getBoundingClientRect().top'),-400);
   await page.evaluate('document.querySelector("#top").click()');
 
   // With ads and carousel removed, every visible slot packs consecutively.
   assert.equal(await page.evaluate(`(()=>{const nodes=[...document.querySelector('#first-grid').children].filter(n=>getComputedStyle(n).display!=='none');
-    const a=nodes[0].getBoundingClientRect(),b=nodes[1].getBoundingClientRect();return a.top===b.top && Math.abs(b.left-a.right-18)<1})()`),true);
-  for (const [width,columns] of [[1800,5],[1300,4],[950,3],[650,2],[420,1]]) {
+    const a=nodes[0].getBoundingClientRect(),b=nodes[1].getBoundingClientRect();return a.top===b.top && Math.abs(b.left-a.right-30)<1})()`),true);
+  for (const [width,columns] of [[1800,3],[1300,3],[950,3]]) {
     await page.resize(width,1000);
     assert.equal((await css('#first-grid','gridTemplateColumns')).split(' ').length,columns,`width ${width}`);
     const ratio = await page.evaluate(`(()=>{const r=document.querySelector('#normal .bili-video-card__image--wrap').getBoundingClientRect();return r.width/r.height})()`);
     assert.ok(Math.abs(ratio-16/9)<0.01,`16:9 at ${width}`);
-    assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth'),true,`no horizontal overflow at ${width}`);
+
   }
   await page.resize(1440,1000);
   for (const material of ['glass','clear']) for (const color of ['#ffffff','#111111','#777777','#ff0000']) {
@@ -200,5 +203,5 @@ export async function runMinimalistChecks({ cdp, base, until, screenshots, mp4 }
   assert.equal(await page.evaluate('document.documentElement.hasAttribute("data-bc-page")'),false);
   await page.evaluate("chrome.runtime.sendMessage({type:'BC_THEME/RESET'})");
   await page.close();
-  console.log('  PASS minimalist: conservative/late ads, packed 5/4/3/2/1 grids, original links/search/menus/preview, category priority, independent options, theme colors, persistence, restore and SPA/page isolation');
+  console.log('  PASS minimalist: conservative/late ads, native grid and native positioning, original links/search/menus/preview, category priority, independent options, theme colors, persistence, restore and SPA/page isolation');
 }

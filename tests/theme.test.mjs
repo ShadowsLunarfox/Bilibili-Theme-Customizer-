@@ -9,7 +9,8 @@ const theme = context.BiliThemePage;
 
 test("page classification respects host, route, and embedded layouts", () => {
   for (const [url, expected] of [
-    ["https://www.bilibili.com/", "home"], ["https://t.bilibili.com/", "dynamic"],
+    ["https://www.bilibili.com/", "home"], ["https://www.bilibili.com/en", "home"],
+    ["https://www.bilibili.com/zh-Hans", "home"], ["https://t.bilibili.com/", "dynamic"],
     ["https://www.bilibili.com/video/BV1xx", "video"], ["https://space.bilibili.com/123/dynamic", "space"],
     ["https://search.bilibili.com/all?keyword=test", "search"], ["https://www.bilibili.com/read/cv123", "article"],
     ["https://www.bilibili.com/opus/123", "opus"], ["https://t.bilibili.com/opus/123", "opus"],

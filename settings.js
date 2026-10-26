@@ -95,18 +95,21 @@
   const NAV_ITEMS = Object.freeze(NAV_GROUPS.flatMap((group) => group.items));
   // Additive schema-2 fields: old profiles retain all theme/media preferences.
   const MINIMALIST_OPTIONS = Object.freeze([
-    ["minimalistEnabled", false, "启用极简模式", "Enable Minimalist Mode"],
-    ["minimalistReferenceLayout", false, "参考图首页布局", "Reference Homepage Layout"],
-    ["minimalistLiquidGlass", false, "液态玻璃", "Liquid Glass"],
+    ["minimalistEnabled", false, "启用首页筛选", "Enable Homepage Filters"],
+    ["minimalistReferenceLayout", false, "参考配色背景", "Reference Background Palette"],
+    ["minimalistLiquidGlass", false, "增强玻璃高光", "Enhanced Glass Highlights"],
     ["minimalistHideAds", true, "隐藏广告与推广", "Hide Ads & Promotions"],
     ["minimalistHideBanner", true, "隐藏顶部活动横幅", "Hide Promotional Banner"],
     ["minimalistCompactNav", true, "精简导航栏", "Compact Navigation"],
-    ["minimalistCompactCategories", false, "精简频道分类", "Compact Categories"],
+    ["minimalistCompactCategories", false, "筛选首页频道", "Filter Homepage Categories"],
     ["minimalistHideCarousel", false, "隐藏首页轮播", "Hide Featured Carousel"],
     ["minimalistToolbar", false, "精简悬浮工具栏", "Minimal Floating Toolbar"],
     ["minimalistGrid", true, "紧凑视频布局", "Compact Video Grid"],
     ["minimalistHideDecorations", false, "隐藏推荐区装饰", "Hide Recommendation Decorations"]
-  ].map(([key, value, zh, en]) => Object.freeze({ key, value, zh, en })));
+  ].map(([key, value, zh, en]) => Object.freeze({ key, value, zh, en,
+    retired: ["minimalistCompactNav", "minimalistGrid"].includes(key),
+    visual: ["minimalistReferenceLayout", "minimalistLiquidGlass"].includes(key)
+  })));
   const preferredCategories = new Set(["channelAnimation", "channelGames", "channelTech",
     "channelMusic", "channelFilm", "channelKnowledge", "channelLife", "channelMore"]);
   const MINIMALIST_CATEGORIES = Object.freeze(NAV_GROUPS
@@ -123,15 +126,12 @@
   ]);
   const DEFAULT = Object.freeze({
     schemaVersion: 2, revision: 0, enabled: true, coverage: "all",
-    material: "glass", opacity: 58, blur: 14, accent: "#63d5ff", textColor: "#ffffff",
+    material: "glass", opacity: 58, blur: 18, accent: "#63d5ff", textColor: "#ffffff",
     language: "auto", ...minimalistDefaults, ...Object.fromEntries(NAV_ITEMS.map((entry) => [entry.key, false]))
   });
 
   const REFERENCE_PRESET = Object.freeze({
-    enabled: true, minimalistEnabled: true, minimalistReferenceLayout: true,
-    minimalistLiquidGlass: true, minimalistHideAds: true, minimalistHideBanner: false,
-    minimalistCompactNav: true, minimalistCompactCategories: true,
-    minimalistHideCarousel: false, minimalistGrid: true, minimalistToolbar: true,
+    enabled: true, minimalistReferenceLayout: true, minimalistLiquidGlass: true,
     material: "glass", coverage: "panels", opacity: 38, blur: 22,
     accent: "#fb7299", textColor: "#232638"
   });
@@ -213,62 +213,112 @@
     return red * 0.2126 + green * 0.7152 + blue * 0.0722;
   }
 
-  function tokens(input) {
+  function tokens(input, backdrop) {
     const current = settings(input);
     const glass = current.material === "glass";
-    const fill = glass ? current.opacity / 100 : 0;
-    const rgbOf = (hex) => [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
-    const text = rgbOf(current.textColor);
-    const contrast = (a, b) => (Math.max(luminance(a), luminance(b)) + 0.05) /
-      (Math.min(luminance(a), luminance(b)) + 0.05);
-    const darkText = contrast(text, [255, 255, 255]) >= contrast(text, [0, 0, 0]);
-    // One wallpaper veil protects text even in Clear mode or at zero glass
-    // opacity. It replaces opaque black boxes on every individual input.
-    const base = darkText ? [255, 255, 255] : [0, 0, 0];
-    const worst = darkText ? [0, 0, 0] : [255, 255, 255];
-    const mix = (a, b, amount) => a.map((value, index) => Math.round(value * (1 - amount) + b[index] * amount));
-    const goal = Math.min(7, Math.max(4.5, contrast(text, base) * 0.98));
-    let low = 0;
-    let high = 1;
-    for (let step = 0; step < 16; step += 1) {
-      const middle = (low + high) / 2;
-      if (contrast(text, mix(worst, base, middle)) >= goal) high = middle;
-      else low = middle;
+    const rgbOf = hex => [1, 3, 5].map(offset => parseInt(hex.slice(offset, offset + 2), 16));
+    const preferred = rgbOf(current.textColor);
+    const contrast = (a,b) => (Math.max(luminance(a),luminance(b))+.05) / (Math.min(luminance(a),luminance(b))+.05);
+    let text = preferred;
+    const average=Array.isArray(backdrop)?backdrop:backdrop?.mean;
+    const sampled = Array.isArray(average) && average.length === 3;
+    // Clear mode has no panel to protect the ink. Glass mode strengthens its
+    // tint first, keeping the preferred foreground stable across wallpapers.
+    if (!glass && sampled && contrast(text,average) < 4.5) {
+      const target = contrast([0,0,0],average) > contrast([255,255,255],average) ? [0,0,0] : [255,255,255];
+      const goal = Math.min(7,contrast(target,average));
+      for (let step=1;step<=100;step++) {
+        text=preferred.map((v,i)=>Math.round(v*(1-step/100)+target[i]*step/100));
+        if (contrast(text,average)>=goal) break;
+      }
     }
-    // Leave a small margin for fractional CSS alpha compositing and rounding.
-    const veil = Math.min(1, Math.ceil((high + 1 / 255) * 10000) / 10000);
-    const readableBackdrop = mix(worst, base, veil);
-    const readable = (candidate, fallback = text) => {
-      for (let step = 0; step <= 100; step += 1) {
-        const rgb = mix(candidate, fallback, step / 100);
-        if (contrast(rgb, readableBackdrop) >= 4.6) return `rgb(${rgb.join(", ")})`;
+    const darkText = contrast(text,[255,255,255]) >= contrast(text,[0,0,0]);
+    const edge = darkText ? [255,255,255] : [0,0,0];
+    const tintRGB = darkText ? [246,249,247] : [20,24,32];
+    const tint = tintRGB.join(", ");
+    const mix = (a,b,amount) => a.map((v,i) => Math.round(v*(1-amount)+b[i]*amount));
+    // A few custom midtone colors cannot contrast even with the solid tint.
+    // Adjust those minimally; never overwrite the user's stored color.
+    if (glass && current.opacity && contrast(text,tintRGB)<7) {
+      const target=darkText?[0,0,0]:[255,255,255];
+      for(let step=1;step<=100;step++) {
+        text=mix(preferred,target,step/100);
+        if(contrast(text,tintRGB)>=7)break;
+      }
+    }
+    const backdropRGB=sampled?((darkText?backdrop?.dark:backdrop?.bright)||average):(darkText?[230,235,242]:[48,55,74]);
+    const strength=current.opacity/58;
+    const alpha=(base,goal,minimum=0)=>{
+      if(!glass || !current.opacity)return 0;
+      let value=Math.min(.92,Math.max(minimum,base*strength));
+      while(value<.94 && contrast(text,mix(backdropRGB,tintRGB,value))<goal)value+=.01;
+      return Math.round(Math.min(.94,value)*1000)/1000;
+    };
+    const light=alpha(.24,4.8);
+    const content=alpha(.46,5.8,light?Math.min(.9,light+.07):0);
+    const strong=alpha(.66,7,content?Math.min(.93,content+.07):0);
+    const panel=mix(backdropRGB,tintRGB,content);
+    const readable = (candidate) => {
+      for (let step=0;step<=100;step++) {
+        const rgb=mix(candidate,text,step/100);
+        if (contrast(rgb,glass?panel:edge)>=4.6) return `rgb(${rgb.join(", ")})`;
       }
       return current.textColor;
     };
-    const secondary = readable(mix(text, base, 0.32));
-    const surface = base.join(", ");
-    const control = `rgba(${surface}, 0.18)`;
+    const secondary = readable(mix(text,edge,.14));
+    const rgba=opacity=>opacity?`rgba(${tint}, ${opacity})`:"transparent";
+    const blur=scale=>`${glass?Math.round(current.blur*scale):0}px`;
+    const filter = glass && current.blur ? "blur(var(--bc-glass-blur-light)) saturate(var(--bc-glass-saturation))" : "none";
+    const highlight = current.minimalistLiquidGlass ? .09 : .06;
     return {
-      "--bc-surface-alpha": String(fill),
+      "--bc-surface-alpha": String(glass ? current.opacity/100 : 0),
+      "--bc-surface-rgb": darkText ? "255, 255, 255" : "0, 0, 0",
       "--bc-blur": `${glass ? current.blur : 0}px`,
-      "--bc-header-alpha": String(fill),
+      "--bc-header-alpha": String(light),
+      "--bc-glass-opacity": String(light),
+      "--bc-glass-tint": tint,
+      "--bc-glass-blur": `${glass ? current.blur : 0}px`,
+      "--bc-glass-blur-light": blur(2/3),
+      "--bc-glass-blur-content": blur(1),
+      "--bc-glass-blur-strong": blur(10/9),
+      "--bc-glass-saturation": "1.4",
+      "--bc-glass-bg-light": rgba(light),
+      "--bc-glass-bg-content": rgba(content),
+      "--bc-glass-bg-strong": rgba(strong),
+      "--bc-glass-bg": "var(--bc-glass-bg-light)",
+      "--bc-glass-filter": filter,
+      "--bc-glass-filter-content": glass && current.blur ? "blur(var(--bc-glass-blur-content)) saturate(var(--bc-glass-saturation))" : "none",
+      "--bc-glass-filter-strong": glass && current.blur ? "blur(var(--bc-glass-blur-strong)) saturate(var(--bc-glass-saturation))" : "none",
+      "--bc-glass-border": light ? (darkText ? "rgba(30, 40, 36, 0.16)" : "rgba(255, 255, 255, 0.16)") : "transparent",
+      "--bc-glass-border-hover": light ? (darkText ? "rgba(30, 40, 36, 0.28)" : "rgba(255, 255, 255, 0.28)") : "transparent",
+      "--bc-glass-shadow": light ? `0 4px 16px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, ${highlight})` : "none",
+      "--bc-glass-shadow-content": light ? `0 8px 24px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, ${highlight})` : "none",
+      "--bc-glass-shadow-strong": light ? `0 12px 32px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, ${highlight})` : "none",
+      "--bc-glass-radius": "16px",
+      "--bc-glass-fallback-bg": glass?"rgba(var(--bc-glass-tint), 0.94)":"transparent",
+      "--bc-category-bg": "var(--bc-glass-bg-light)",
+      "--bc-hover-bg": darkText ? "rgba(0, 0, 0, 0.08)" : "rgba(255, 255, 255, 0.10)",
+      "--bc-selected-bg": `rgba(${rgbOf(current.accent).join(", ")}, 0.10)`,
       "--bc-accent": current.accent,
       "--bc-text-color": current.textColor,
-      "--bc-text-shadow": "none",
-      "--bc-surface-rgb": surface,
-      "--bc-wallpaper-veil": String(veil),
+      "--bc-foreground": `rgb(${text.join(", ")})`,
+      "--bc-text-edge": `rgb(${edge.join(", ")})`,
+      "--bc-text-shadow": `0 1px 2px rgba(${edge.join(", ")}, 0.12)`,
+      "--bc-wallpaper-veil": "0",
+      "--bc-wallpaper-start": darkText ? "#d6e8e6" : "#244958",
+      "--bc-wallpaper-mid": darkText ? "#e7dff0" : "#56416d",
+      "--bc-wallpaper-end": darkText ? "#dae7ee" : "#1d5965",
       "--bc-secondary-color": secondary,
       "--bc-placeholder-color": secondary,
-      "--bc-disabled-color": `rgb(${mix(text, base, 0.45).join(", ")})`,
-      "--bc-link-color": readable(rgbOf(current.accent), darkText ? [0, 0, 0] : [255, 255, 255]),
-      "--bc-border": `rgba(${text.join(", ")}, 0.22)`,
-      "--bc-control-bg": control,
-      "--bc-input-bg": control,
-      "--bc-popup-bg": `rgb(${surface})`,
-      "--bc-focus": readable(rgbOf(current.accent), darkText ? [0, 0, 0] : [255, 255, 255])
+      "--bc-disabled-color": `rgb(${mix(text,edge,.4).join(", ")})`,
+      "--bc-link-color": readable(rgbOf(current.accent)),
+      "--bc-border": darkText ? "rgba(30, 40, 36, 0.1)" : "rgba(255, 255, 255, 0.12)",
+      "--bc-control-bg": rgba(glass && current.opacity ? .28 : 0),
+      "--bc-input-bg": rgba(glass && current.opacity ? .32 : 0),
+      "--bc-popup-bg": rgba(strong),
+      "--bc-focus": readable(rgbOf(current.accent))
     };
   }
-
   function createClient(api = chrome) {
     let snapshot = {};
     const listeners = new Set();
