@@ -182,6 +182,14 @@ fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
   pointer-events: none;
 }
 .preview-video[hidden] { display: none; }
+.preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: rgba(var(--preview-surface-rgb, 0, 0, 0), var(--preview-veil, 0));
+  pointer-events: none;
+}
 .preview-label {
   position: relative;
   z-index: 1;
@@ -199,7 +207,7 @@ fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
   margin: 7px 4px 0 auto;
   border: 2px solid;
   border-color: #fff #404040 #404040 #fff;
-  background: rgba(8, 14, 24, var(--preview-alpha, .58));
+  background: rgba(var(--preview-surface-rgb, 0, 0, 0), var(--preview-alpha, .58));
   box-shadow: inset -1px -1px #808080;
   -webkit-backdrop-filter: blur(var(--preview-blur, 14px));
   backdrop-filter: blur(var(--preview-blur, 14px));
@@ -212,7 +220,7 @@ fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
   padding: 2px 4px;
   color: var(--preview-text-color, #fff);
   text-shadow: var(--preview-text-shadow, 0 1px 2px #000);
-  background: #000080;
+  background: rgba(var(--preview-surface-rgb, 0, 0, 0), .2);
 }
 .preview-dot {
   width: 9px;

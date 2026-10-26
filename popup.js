@@ -3,6 +3,7 @@
   const copy = {
     zh: {
       appTitle: "B哩B哩主题 / Bilibili Theme Customizer", close: "关闭", enabled: "启用主题", language: "语言",
+      languageAuto: "跟随浏览器",
       background: "桌面背景", previewTitle: "内容面板", previewSample: "主题设置预览",
       chooseImage: "浏览...", removeImage: "移除", imageHint: "支持图片、GIF 和 MP4，最大 20 MB；GIF 与视频保持动态，视频静音循环播放，文件只保存在本机。",
       coverage: "应用范围", coverageAll: "全元素", coveragePanels: "内容面板",
@@ -29,6 +30,7 @@
     },
     en: {
       appTitle: "B哩B哩主题 / Bilibili Theme Customizer", close: "Close", enabled: "Enable theme", language: "Language",
+      languageAuto: "Auto",
       background: "Desktop background", previewTitle: "Content panel", previewSample: "Theme preview",
       chooseImage: "Browse...", removeImage: "Remove", imageHint: "Images, GIF and MP4 up to 20 MB. GIFs and videos stay animated; videos loop silently. Files stay on this device.",
       coverage: "Apply to", coverageAll: "All elements", coveragePanels: "Content panels",
@@ -56,7 +58,6 @@
   };
   const browserLanguage = navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
   const client = BC.createClient();
-  const navigationKeys = new Set(BC.NAV_ITEMS.map((entry) => entry.key));
   const form = document.querySelector("#settings-form");
   const controls = document.querySelector("#controls");
   const preview = document.querySelector("#preview");
@@ -148,7 +149,7 @@
     locale = languageOf(settings.language);
     applyLanguage();
     controls.disabled = !ready || busy;
-    form.elements.namedItem("language").value = locale;
+    form.elements.namedItem("language").value = settings.language;
     for (const name of ["coverage", "material", "opacity", "blur", "accent", "textColor"]) {
       form.elements.namedItem(name).value = settings[name];
     }
@@ -189,7 +190,6 @@
       previewVideo.hidden = !video;
       if (video) {
         previewVideo.src = background.dataUrl;
-        void previewVideo.play().catch(() => {});
       } else if (previewVideo.hasAttribute("src")) {
         previewVideo.pause();
         previewVideo.removeAttribute("src");
@@ -197,6 +197,7 @@
       }
       lastBackgroundUrl = background.dataUrl;
     }
+    syncPreviewPlayback(settings.enabled);
     const tokens = BC.tokens(settings);
     preview.style.setProperty("--preview-alpha", settings.enabled
       ? tokens["--bc-surface-alpha"] : "0.92");
@@ -204,10 +205,18 @@
     preview.style.setProperty("--preview-accent", settings.accent);
     preview.style.setProperty("--preview-text-color", settings.textColor);
     preview.style.setProperty("--preview-text-shadow", tokens["--bc-text-shadow"]);
+    preview.style.setProperty("--preview-surface-rgb", tokens["--bc-surface-rgb"]);
+    preview.style.setProperty("--preview-veil", settings.enabled ? tokens["--bc-wallpaper-veil"] : "0");
     document.querySelector("#preview-label").textContent = t(settings.enabled ? "previewLabel" : "paused");
     status.classList.toggle("error", Boolean(error));
     status.textContent = t(error || (!ready ? "loading" : busy
       ? "processing" : saving ? "saving" : "saved"));
+  }
+
+  function syncPreviewPlayback(enabled = client.snapshot.settings?.enabled) {
+    if (enabled && !document.hidden && !previewVideo.hidden) {
+      void previewVideo.play().catch(() => {});
+    } else previewVideo.pause();
   }
 
   function asDataUrl(blob) {
@@ -303,8 +312,8 @@
     render();
     try {
       const updated = await client.patch(changes);
-      if (Object.entries(changes).some(([name, value]) =>
-        navigationKeys.has(name) && updated.settings?.[name] !== value)) {
+      if (Object.keys(changes).some((name) =>
+        !Object.hasOwn(updated.settings || {}, name))) {
         throw new Error("RELOAD_EXTENSION");
       }
     }
@@ -361,5 +370,12 @@
     error = errorKey(failure, "LOAD_ERROR");
     render();
   });
-  window.addEventListener("pagehide", () => { unsubscribe(); client.dispose(); }, { once: true });
+  document.addEventListener("visibilitychange", () => syncPreviewPlayback());
+  window.addEventListener("pagehide", () => {
+    unsubscribe();
+    client.dispose();
+    previewVideo.pause();
+    previewVideo.removeAttribute("src");
+    previewVideo.load();
+  }, { once: true });
 })();

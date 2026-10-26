@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "B哩B哩主题 / Bilibili Theme Customizer",
-  "version": "2.6.1",
+  "version": "2.6.3",
   "minimum_chrome_version": "114",
   "description": "自定义哔哩哔哩背景和玻璃效果。Customize Bilibili backgrounds and glass effects.",
   "permissions": ["storage", "unlimitedStorage"],
@@ -27,7 +27,7 @@
   "content_scripts": [
     {
       "matches": ["https://*.bilibili.com/*"],
-      "js": ["settings.js", "content.js"],
+      "js": ["settings.js", "theme.js", "content.js"],
       "run_at": "document_start"
     }
   ]

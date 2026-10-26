@@ -27,7 +27,7 @@
 | 🎨 字体颜色 | 自定义网页文字颜色；输入框底色会随所选文字颜色调整。 |
 | 🧭 导航整理 | 分别隐藏顶部左侧、首页频道图标、分类、快捷入口、更多频道和悬浮工具栏中的项目；支持一键隐藏或显示整组。 |
 | 🪟 站内界面 | 搜索建议、悬浮菜单、个人资料卡、视频简介和评论区等区域也会应用主题效果。 |
-| 🌐 双语面板 | 首次使用跟随浏览器语言，也可在弹窗中手动选择中文或 English。 |
+| 🌐 双语面板 | 默认跟随浏览器语言，也可在弹窗中选择“跟随浏览器”、中文或 English；选择会自动保存。 |
 
 ### 🚀 安装教程
 
@@ -51,6 +51,10 @@
 
 </details>
 
+### 🧪 开发验证
+
+功能检查结果、自动化测试命令和 Chrome / Edge 手动验收步骤见 [TESTING.md](TESTING.md)。测试工具仅用于开发，扩展仍可直接加载，无需安装依赖或构建。
+
 ---
 
 <a id="en"></a>
@@ -67,7 +71,7 @@ A Chrome / Edge extension for customizing Bilibili backgrounds, glass effects, a
 | 🎨 Text color | Pick a page text color. Input backgrounds adapt to keep the text readable. |
 | 🧭 Navigation controls | Hide individual items in the top-left navigation, home channels, shortcuts, More menu, and floating toolbar. Hide or show an entire group with one click. |
 | 🪟 Site UI | The theme also styles search suggestions, hover menus, profile cards, video descriptions, and comments. |
-| 🌐 Two languages | Follow the browser language at first launch, or choose 中文 / English in the popup. |
+| 🌐 Two languages | Follow the browser language by default, or choose Auto, 中文, or English in the popup. Your choice is saved. |
 
 ### 🚀 Installation
 
@@ -91,6 +95,10 @@ Check the popup status and errors on the extensions page. Make sure Chrome or Ed
 
 </details>
 
+### 🧪 Development checks
+
+See [TESTING.md](TESTING.md) for the feature audit, automated commands, and Chrome / Edge acceptance steps. Test tools are optional; loading the extension still requires no dependencies or build step.
+
 ---
 
 ## 📁 项目文件 / Project files
@@ -100,6 +108,7 @@ Check the popup status and errors on the extensions page. Make sure Chrome or Ed
 | `manifest.json` | 扩展入口、权限和图标 / Extension entry, permissions, and icons |
 | `popup.html` · `popup.css` · `popup.js` | 双语设置面板 / Bilingual settings popup |
 | `content.js` | 网页背景与玻璃效果 / Page backgrounds and glass effects |
+| `theme.js` | 页面识别与组件主题样式 / Page classification and component theme styles |
 | `settings.js` | 共用设置和扩展后台 / Shared settings and service worker |
 | `assets/logo.png` | 完整 Logo / Full logo |
 | `assets/icon-16.png` · `icon-32.png` · `icon-48.png` · `icon-128.png` | 浏览器与弹窗图标 / Browser and popup icons |

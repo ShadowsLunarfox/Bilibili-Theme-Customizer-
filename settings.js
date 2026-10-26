@@ -169,23 +169,67 @@
     };
   }
 
+  function luminance(rgb) {
+    const [red, green, blue] = rgb.map((value) => {
+      const channel = value / 255;
+      return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+    return red * 0.2126 + green * 0.7152 + blue * 0.0722;
+  }
+
   function tokens(input) {
     const current = settings(input);
     const glass = current.material === "glass";
     const fill = glass ? current.opacity / 100 : 0;
-    const red = parseInt(current.textColor.slice(1, 3), 16);
-    const green = parseInt(current.textColor.slice(3, 5), 16);
-    const blue = parseInt(current.textColor.slice(5, 7), 16);
-    const darkText = red * 0.2126 + green * 0.7152 + blue * 0.0722 < 145;
+    const rgbOf = (hex) => [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
+    const text = rgbOf(current.textColor);
+    const contrast = (a, b) => (Math.max(luminance(a), luminance(b)) + 0.05) /
+      (Math.min(luminance(a), luminance(b)) + 0.05);
+    const darkText = contrast(text, [255, 255, 255]) >= contrast(text, [0, 0, 0]);
+    // One wallpaper veil protects text even in Clear mode or at zero glass
+    // opacity. It replaces opaque black boxes on every individual input.
+    const base = darkText ? [255, 255, 255] : [0, 0, 0];
+    const worst = darkText ? [0, 0, 0] : [255, 255, 255];
+    const mix = (a, b, amount) => a.map((value, index) => Math.round(value * (1 - amount) + b[index] * amount));
+    const goal = Math.min(7, Math.max(4.5, contrast(text, base) * 0.98));
+    let low = 0;
+    let high = 1;
+    for (let step = 0; step < 16; step += 1) {
+      const middle = (low + high) / 2;
+      if (contrast(text, mix(worst, base, middle)) >= goal) high = middle;
+      else low = middle;
+    }
+    // Leave a small margin for fractional CSS alpha compositing and rounding.
+    const veil = Math.min(1, Math.ceil((high + 1 / 255) * 10000) / 10000);
+    const readableBackdrop = mix(worst, base, veil);
+    const readable = (candidate, fallback = text) => {
+      for (let step = 0; step <= 100; step += 1) {
+        const rgb = mix(candidate, fallback, step / 100);
+        if (contrast(rgb, readableBackdrop) >= 4.6) return `rgb(${rgb.join(", ")})`;
+      }
+      return current.textColor;
+    };
+    const secondary = readable(mix(text, base, 0.32));
+    const surface = base.join(", ");
+    const control = `rgba(${surface}, 0.18)`;
     return {
       "--bc-surface-alpha": String(fill),
       "--bc-blur": `${glass ? current.blur : 0}px`,
-      "--bc-header-alpha": String(glass ? 0.72 : 0),
+      "--bc-header-alpha": String(fill),
       "--bc-accent": current.accent,
       "--bc-text-color": current.textColor,
-      "--bc-text-shadow": darkText
-        ? "0 1px 2px rgba(255, 255, 255, .8)" : "0 1px 2px rgba(0, 0, 0, .8)",
-      "--bc-input-bg": darkText ? "rgba(255, 255, 255, .82)" : "rgba(8, 14, 24, .82)"
+      "--bc-text-shadow": "none",
+      "--bc-surface-rgb": surface,
+      "--bc-wallpaper-veil": String(veil),
+      "--bc-secondary-color": secondary,
+      "--bc-placeholder-color": secondary,
+      "--bc-disabled-color": `rgb(${mix(text, base, 0.45).join(", ")})`,
+      "--bc-link-color": readable(rgbOf(current.accent), darkText ? [0, 0, 0] : [255, 255, 255]),
+      "--bc-border": `rgba(${text.join(", ")}, 0.22)`,
+      "--bc-control-bg": control,
+      "--bc-input-bg": control,
+      "--bc-popup-bg": `rgb(${surface})`,
+      "--bc-focus": readable(rgbOf(current.accent), darkText ? [0, 0, 0] : [255, 255, 255])
     };
   }
 
@@ -193,12 +237,13 @@
     let snapshot = {};
     const listeners = new Set();
     let started = false;
+    let starting;
 
     function accept(incoming) {
       const next = { ...snapshot };
       for (const key of ["settings", "background"]) {
         if (incoming?.[key] && (!next[key] ||
-            revision(incoming[key].revision) >= revision(next[key].revision))) next[key] = incoming[key];
+            revision(incoming[key].revision) > revision(next[key].revision))) next[key] = incoming[key];
       }
       const changed = next.settings !== snapshot.settings || next.background !== snapshot.background;
       snapshot = next;
@@ -224,11 +269,14 @@
       get snapshot() { return snapshot; },
       subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
       async start() {
+        if (starting) return starting;
         if (started) return snapshot;
         started = true;
         api.storage.onChanged.addListener(onStorageChanged);
-        try { return await request(MESSAGE.GET); }
+        starting = request(MESSAGE.GET);
+        try { return await starting; }
         catch (error) { this.dispose(); throw error; }
+        finally { starting = undefined; }
       },
       patch(changes) { return request(MESSAGE.PATCH, changes); },
       setBackground(input) { return request(MESSAGE.BACKGROUND, input); },
@@ -259,19 +307,26 @@ if (typeof document === "undefined" &&
       if (record?.schemaVersion > BC.DEFAULT.schemaVersion) {
         throw new Error("NEWER_VERSION");
       }
-      if (record?.schemaVersion === BC.DEFAULT.schemaVersion) {
-        state = { settings: BC.settings(record), background: BC.background(saved[BC.KEYS.background]) };
-        return;
+      const legacy = record && typeof record === "object" ? record : saved.settings;
+      const migrated = record?.schemaVersion !== BC.DEFAULT.schemaVersion;
+      const settings = BC.settings(legacy);
+      if (migrated) settings.revision += 1;
+      let background;
+      let repaired = false;
+      try {
+        background = BC.background(saved[BC.KEYS.background] ?? (legacy?.backgroundImage
+          ? { dataUrl: legacy.backgroundImage, name: "原有背景", revision: settings.revision }
+          : null));
+      } catch {
+        // A damaged background must not prevent reading settings or resetting them.
+        background = BC.emptyBackground(Math.max(settings.revision,
+          Number.isSafeInteger(saved[BC.KEYS.background]?.revision) ? saved[BC.KEYS.background].revision : 0));
+        repaired = true;
       }
-
-      const legacy = saved.settings;
-      const settings = { ...BC.settings(legacy), revision: 1 };
-      const background = legacy?.backgroundImage
-        ? BC.background({ dataUrl: legacy.backgroundImage, name: "原有背景" }, 1)
-        : BC.emptyBackground(1);
-      const updates = { [BC.KEYS.settings]: settings, [BC.KEYS.background]: background };
-      if (Object.hasOwn(saved, "settings")) updates.settings = null;
-      await chrome.storage.local.set(updates);
+      settings.revision = Math.max(settings.revision, background.revision);
+      if (migrated || repaired) {
+        await chrome.storage.local.set({ [BC.KEYS.settings]: settings, [BC.KEYS.background]: background });
+      }
       state = { settings, background };
       if (Object.hasOwn(saved, "settings")) {
         await chrome.storage.local.remove("settings").catch(() => {});
