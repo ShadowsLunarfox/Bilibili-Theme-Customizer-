@@ -9,6 +9,9 @@ export const selectors = {
   category:'.channel-link,.channel-link__more', categoryGrid:'.channel-items__left',
   feed:'.bili-feed4,.bili-feed4-layout', grid:'.recommended-container_floor-aside > .container,.recommended-container_overseas > .container,.feed2 > .container',
   carousel:'.recommended-swipe', card:'.bili-video-card', thumbnail:'.bili-video-card__image--wrap',
+  cardSurface:'.bili-video-card > .bili-video-card__wrap,.bili-video-card > .bili-video-card__skeleton',
+  floorSurface:'.floor-single-card > .floor-card.single-card > .floor-card-inner',
+  liveSurface:'.bili-live-card > .bili-live-card__wrap,.bili-live-card > .bili-live-card__skeleton',
   title:'.bili-video-card__info--tit', info:'.bili-video-card__info',
   profile:'.right-entry', popup:'.v-popover-content,.nav-search-panel',
   searchHeader:'.search-header', video:'.video-container,#bilibili-player,.bpx-player-container',
@@ -64,13 +67,15 @@ export async function assertVisualOnlyCSS(page) {
         if(p.startsWith('--')||/^(background($|-)|color$|border-(color$|.+-color$|radius$|.+-radius$)|box-shadow$|text-shadow$|text-decoration($|-)|caret-color$|outline($|-)|opacity$|transition($|-))/.test(p))continue;
         if(p==='display'&&r.style[p]==='none'&&/data-bc-(min-options|hidden|channel-layout)/.test(r.selectorText))continue;
         if(p==='visibility'&&r.style[p]==='hidden'&&r.selectorText.includes('data-bc-min-options'))continue;
+        if(p==='margin-top'&&r.style[p]==='var(--bc-feed-margin-top)'&&
+            r.selectorText==='html[data-bc-page="home"]:is([data-bc-enabled="true"], [data-bc-minimalist="true"]) .recommended-container_floor-aside > .container [data-bc-feed-margin]')continue;
         violations.push({selector:r.selectorText,property:p,value:r.style[p]});
       }
     }}
     for(const s of document.querySelectorAll('style[data-bc-owned="style"]'))visit(s.sheet.cssRules);
     return violations;
   })()`);
-  assert.deepEqual(violations,[],'theme CSS must contain only appearance and explicitly requested hiding');
+  assert.deepEqual(violations,[],'theme CSS must contain only appearance, explicit hiding and the scoped homepage margin correction');
 }
 
 export async function runParity({page,patch,artifacts,label='fixture',navKeys=[],continuous=true}) {

@@ -48,7 +48,7 @@ export async function runLiquidChecks({cdp,base,until,screenshots}) {
   await capture('frosted-native');await patch({enabled:true});
   compare(original,await measure(page),'frosted homepage native geometry');
   await until(page,'document.querySelector(".bc-theme-surface-glass[data-bc-level=content]") !== null');
-  for(const selector of ['.bili-header__bar','#normal','.nav-search-form'])assert.notEqual(await css(selector,'backgroundColor'),'rgba(0, 0, 0, 0)',selector+' has tinted glass');
+  for(const selector of ['.bili-header__bar','#normal > .bili-video-card__wrap','.nav-search-form'])assert.notEqual(await css(selector,'backgroundColor'),'rgba(0, 0, 0, 0)',selector+' has tinted glass');
   await until(page,'document.querySelector("[data-bc-surface-kind=categories]") !== null');
   assert.notEqual(await css('[data-bc-surface-kind=categories]','backgroundColor'),'rgba(0, 0, 0, 0)');
   for(const selector of ['#normal img','#normal .bili-video-card__info','.bili-header__bar','.bili-header__channel'])assert.equal(await css(selector,'backdropFilter'),'none','no native containing-block change: '+selector);
@@ -72,7 +72,7 @@ export async function runLiquidChecks({cdp,base,until,screenshots}) {
     await page.evaluate('chrome.runtime.sendMessage({type:"BC_THEME/BACKGROUND",payload:{dataUrl:'+JSON.stringify(image)+',name:'+JSON.stringify(name)+'}})');
     await until(page,'document.querySelector("#bc-theme-wallpaper")?.dataset.bcCustom === "true"');
     await until(page,name==='bright'?'Number(document.documentElement.style.getPropertyValue("--bc-glass-bg-content").match(/[\\d.]+/g)[3]) > .6':'document.documentElement.style.getPropertyValue("--bc-glass-bg-content").includes("0.46")');
-    const alpha=Number((await css('#normal','backgroundColor')).match(/[\d.]+/g)[3]);
+    const alpha=Number((await css('#normal > .bili-video-card__wrap','backgroundColor')).match(/[\d.]+/g)[3]);
     if(name==='dark')darkAlpha=alpha;else assert.ok(alpha>darkAlpha,'bright wallpaper strengthens panels');
     assert.equal(await css('#normal h3 a','color'),'rgb(255, 255, 255)','white foreground stays stable; tint adapts first');
     assert.equal(await page.evaluate('document.documentElement.style.getPropertyValue("--bc-wallpaper-veil")'),'0');
@@ -120,12 +120,12 @@ export async function runLiquidChecks({cdp,base,until,screenshots}) {
   await cdp.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'},{name:'prefers-reduced-transparency',value:'reduce'}]},page.sessionId);
   await settle(page);
   assert.equal(await css('#bc-theme-header-glass','backdropFilter'),'none');
-  assert.match(await css('#normal','backgroundColor'),/0\.94/);
+  assert.match(await css('#normal > .bili-video-card__wrap','backgroundColor'),/0\.94/);
   assert.equal(await css('#cat-channelTech','transitionDuration'),'0s');
   await cdp.send('Emulation.setEmulatedMedia',{features:[]},page.sessionId);
   await page.evaluate('(()=>{const s=document.querySelector("style[data-bc-owned=style]");globalThis.originalFrostCSS=s.textContent;s.textContent=s.textContent.replace("@supports not (backdrop-filter: blur(1px))","@supports (display: block)");})()');
   await settle(page);
-  assert.match(await css('#normal','backgroundColor'),/0\.94/);
+  assert.match(await css('#normal > .bili-video-card__wrap','backgroundColor'),/0\.94/);
   assert.equal(await css('#bc-theme-header-glass','backdropFilter'),'none');
   await page.evaluate('document.querySelector("style[data-bc-owned=style]").textContent=originalFrostCSS');
   await patch({material:'clear'});

@@ -14,12 +14,16 @@ import { runHeaderGlassChecks } from "./header-glass.mjs";
 import { liquidFixture, runLiquidChecks } from "./liquid.mjs";
 import { runOfficialParity } from "./official-parity.mjs";
 import {homescreenFixture,runHomescreenChecks} from './homescreen.mjs';
+import {filteredLayoutFixture,runFilteredLayoutChecks,nestedLayoutFixture,runNestedLayoutChecks} from './filtered-layout.mjs';
+import {homeSurfacesFixture,runHomeSurfaceChecks} from './home-surfaces.mjs';
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const browserExtraArgs = process.env.BC_TEST_NO_SANDBOX === "1" ? ["--no-sandbox"] : [];
 const screenshotDirectory = process.env.BC_TEST_SCREENSHOTS;
 const officialMode = process.env.BC_TEST_OFFICIAL === "1";
 const homeCaptureMode = process.env.BC_TEST_HOME_CAPTURE;
+const filteredLayoutMode = process.env.BC_TEST_FILTER_LAYOUT === '1';
+const surfaceMode = process.env.BC_TEST_HOME_SURFACES === '1';
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8"));
 const bridge = `
@@ -116,12 +120,13 @@ class CDP {
     console.log("  Attached test tab");
     await this.send("Runtime.enable", {}, sessionId);
     await this.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false }, sessionId);
-    this.socket.addEventListener("message", ({ data }) => {
+    const onException = ({ data }) => {
       const message = JSON.parse(data);
       if (message.sessionId === sessionId && message.method === "Runtime.exceptionThrown") {
         console.error(message.params.exceptionDetails.exception?.description || message.params.exceptionDetails.text);
       }
-    });
+    };
+    this.socket.addEventListener("message", onException);
     const evaluate = async (expression) => {
       const result = await this.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }, sessionId);
       if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
@@ -130,7 +135,7 @@ class CDP {
     await this.send("Page.navigate", { url }, sessionId);
     return { targetId, sessionId, evaluate,
       navigate: (nextURL) => this.send("Page.navigate", { url: nextURL }, sessionId),
-      close: () => this.send("Target.closeTarget", { targetId }),
+      close: () => { this.socket.removeEventListener("message", onException); return this.send("Target.closeTarget", { targetId }); },
       type: (text) => this.send("Input.insertText", { text }, sessionId),
       resize: (width, height) => this.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false }, sessionId),
       screenshot: async () => Buffer.from((await this.send("Page.captureScreenshot", { format: "png" }, sessionId)).data, "base64"),
@@ -170,6 +175,12 @@ async function runBrowser(executable) {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(liquidFixture(rt.BC));
       } else if (path === "/homescreen.html") {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(homescreenFixture(rt.BC));
+      } else if (path === "/filtered-layout.html") {
+        response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(filteredLayoutFixture(rt.BC));
+      } else if (path === "/nested-layout.html") {
+        response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(nestedLayoutFixture(rt.BC));
+      } else if (path === "/home-surfaces.html") {
+        response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(homeSurfacesFixture(rt.BC));
       } else if (path === "/minimalist.html") {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(minimalistFixture(rt.BC));
       } else if (path === "/fixture.html") {
@@ -212,6 +223,11 @@ async function runBrowser(executable) {
       return;
     }
     if(homeCaptureMode){await runHomescreenChecks({cdp,base,until,screenshots:screenshotDirectory,mode:homeCaptureMode});return;}
+    if(surfaceMode){await runHomeSurfaceChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
+    if(filteredLayoutMode){
+      await runFilteredLayoutChecks({cdp,base,until,screenshots:screenshotDirectory});
+      await runNestedLayoutChecks({cdp,base,until,screenshots:screenshotDirectory});return;
+    }
     await runHeaderGlassChecks({ cdp, until, html: fixture(rt.BC), snapshot: (await rt.send(rt.BC.MESSAGE.GET)).data });
     const page = await cdp.page(`${base}/fixture.html`);
     await until(page, 'document.documentElement.dataset.bcEnabled === "true"');
@@ -359,6 +375,9 @@ async function runBrowser(executable) {
     console.log("  PASS real MP4 decoding/playback, tab pause/resume, persistence, removal and defaults");
     await runLiquidChecks({ cdp, base, until, screenshots: screenshotDirectory });
     await runHomescreenChecks({cdp,base,until,screenshots:screenshotDirectory});
+    await runFilteredLayoutChecks({cdp,base,until,screenshots:screenshotDirectory});
+    await runNestedLayoutChecks({cdp,base,until,screenshots:screenshotDirectory});
+    await runHomeSurfaceChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runMinimalistChecks({ cdp, base, until, screenshots: screenshotDirectory, mp4: recordedMP4 });
     await runReferenceChecks({ cdp, base, until, screenshots: screenshotDirectory });
     await runCompatibilityMatrix({ cdp, base, until, mp4: recordedMP4,

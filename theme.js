@@ -116,11 +116,17 @@
   const glassMaterial=material('light');
   const floating = popovers;
   const navigation='.bili-header__bar, .bili-header__channel, .header-channel, .search-header, .search-sticky-header, .search-tabs, .space-navbar, .bili-dyn-list-tabs';
-  const tools='.palette-button-wrap, .fixed-tool-panel, .float-nav';
-  const homeCards='.bili-video-card, .video-card:has(> .video-card__info)';
+  const tools='.fixed-tool-panel, .float-nav';
+  const toolbarButtons=`.palette-button-wrap > button, .palette-button-wrap .watchlater-pip-button-inner,
+    .palette-button-wrap .flexible-roll-btn-inner, .palette-button-wrap .flexible-btn-inner,
+    .palette-button-wrap .float-button, .palette-button-wrap .top-btn, .palette-button-wrap .roll-btn`;
+  const homeCards='.bili-video-card, .bili-live-card, .video-card:has(> .video-card__info)';
+  const homeSurfaces=`.bili-video-card > .bili-video-card__wrap, .bili-video-card > .bili-video-card__skeleton,
+    .bili-live-card > .bili-live-card__wrap, .bili-live-card > .bili-live-card__skeleton,
+    .video-card:has(> .video-card__info), .floor-single-card > .floor-card.single-card > .floor-card-inner`;
   const allContent=[comments,tools,'.bili-video-card__info,.video-card__info',...Object.values(profiles).map(p=>p.surfaces).filter(Boolean)].join(',');
   function surfaceGroups(page) {
-    return {light:navigation,content:`${comments},${tools}${profiles[page]?.surfaces?', '+profiles[page].surfaces:''}${page==='home'?', '+homeCards:''}`,strong:popovers};
+    return {light:`${navigation},${toolbarButtons}`,content:`${comments},${tools}${profiles[page]?.surfaces?', '+profiles[page].surfaces:''}${page==='home'?', '+homeSurfaces+', .recommended-swipe .recommended-swipe-body':''}`,strong:popovers};
   }
   // Native elements retain every dimension, border width, font metric, layout,
   // overflow rule and breakpoint. Only appearance is changed here.
@@ -222,6 +228,19 @@
     ${enabled}[data-bc-coverage="all"] body :where(.bili-header,.home-container) { background-color: transparent !important; }
     ${enabled}[data-bc-material] body :where(${navigation}) { ${palette} ${material('light')} color: var(--bc-foreground, var(--bc-text-color)); }
     ${enabled} body :where(${tools}) { ${palette} ${material('content')} color: var(--bc-foreground, var(--bc-text-color)); }
+    /* The toolbar wrapper contains hidden controls and reserved native space.
+       Paint the actual button shells, never a continuous rail behind them. */
+    ${enabled} body .palette-button-wrap,
+    ${enabled} body .palette-button-wrap :is(.storage-box,.storable-items) {
+      background: transparent !important; box-shadow: none !important; border-color: transparent;
+    }
+    ${enabled} body :is(${toolbarButtons}) {
+      ${palette} ${material('light')} border-radius: var(--bc-control-radius);
+      color: var(--bc-foreground, var(--bc-text-color));
+    }
+    ${enabled} body :is(${toolbarButtons}):is(:hover,:focus-visible) {
+      border-color: var(--bc-glass-border-hover); box-shadow: inset 0 0 0 1px var(--bc-glass-border-hover), var(--bc-glass-shadow);
+    }
     ${enabled}[data-bc-material] body :where(${floating}) { ${palette} ${material('strong')} color: var(--bc-foreground, var(--bc-text-color)); }
     ${enabled} body :where(${floating}) :where(input,textarea) {
       color: var(--bc-foreground, var(--bc-text-color)); background: var(--bc-input-bg); border-color: var(--bc-glass-border-hover);
@@ -279,14 +298,41 @@
       background-color: var(--bc-input-bg); color: var(--bc-foreground, var(--bc-text-color)); border-color: var(--bc-glass-border);
     }
     ${enabled} body .palette-button-wrap > :where(button,.top-btn,.roll-btn):hover { background-color: var(--bc-hover-bg); border-color: var(--bc-glass-border-hover); }
-    /* Home keeps native flow, but paints one coherent card rather than a
-       separate rounded pill beneath each image. Images remain above the frost. */
+    /* A grid item may stretch beyond its content. Its native content shell
+       owns the glass, so neither tint nor shadow fills unused row space. */
     ${enabled}[data-bc-page="home"] body :where(${homeCards}) {
-      ${palette} ${material('content')} border-radius: 10px;
+      ${palette} --graph_bg_regular: var(--bc-skeleton-cover-bg);
+      background: transparent !important; box-shadow: none; border-radius: var(--bc-card-radius);
+    }
+    ${enabled}[data-bc-page="home"] body :is(${homeSurfaces}) {
+      ${palette} ${material('content')} border-radius: var(--bc-card-radius);
+      color: var(--bc-foreground, var(--bc-text-color));
       box-shadow: inset 0 0 0 1px var(--bc-glass-border), var(--bc-glass-shadow);
     }
-    ${enabled}[data-bc-page="home"] body :where(${homeCards}) :is(.bili-video-card__info,.video-card__info) {
+    ${enabled}[data-bc-page="home"] body .floor-single-card > .floor-card.single-card {
+      ${palette} --graph_bg_regular: var(--bc-skeleton-cover-bg);
+      background: transparent !important; border-color: transparent; box-shadow: none;
+      color: var(--bc-foreground, var(--bc-text-color));
+    }
+    ${enabled}[data-bc-page="home"] body .floor-single-card > .floor-card.single-card > .layer {
+      background: transparent !important; border-color: transparent; box-shadow: none;
+    }
+    ${enabled}[data-bc-page="home"] body :where(${homeCards}) :is(.bili-video-card__info,.bili-live-card__info,.video-card__info) {
       background: transparent !important; border-color: transparent; border-radius: 0; box-shadow: none !important;
+    }
+    ${enabled}[data-bc-page="home"] body :is(.bili-video-card,.bili-live-card) :is(.bili-video-card__skeleton--cover,.bili-video-card__image--wrap,.bili-live-card__skeleton--cover,.bili-live-card__image) {
+      background-color: var(--bc-skeleton-cover-bg);
+    }
+    ${enabled}[data-bc-page="home"] body :is(.bili-video-card,.bili-live-card) :is(.bili-video-card__skeleton--text,.bili-video-card__skeleton--light,.bili-live-card__skeleton--text,.bili-live-card__skeleton--light) {
+      background-color: var(--bc-skeleton-line-bg);
+    }
+    ${enabled}[data-bc-page="home"] body :is(.bili-video-card,.bili-live-card) .loading_animation :is(.bili-video-card__skeleton--cover,.bili-video-card__skeleton--text,.bili-video-card__skeleton--light,.bili-live-card__skeleton--cover,.bili-live-card__skeleton--text,.bili-live-card__skeleton--light)::after {
+      background-image: linear-gradient(-45deg,transparent 25%,var(--bc-skeleton-highlight) 45%,transparent 65%);
+    }
+    /* Native failed/blocked-media placeholders use these variables too. Tint
+       their existing state without guessing obfuscated classes or hiding it. */
+    ${enabled}[data-bc-page="home"] body .recommended-swipe {
+      ${palette} --graph_bg_regular: var(--bc-glass-bg-content); --text4: var(--bc-secondary-color);
     }
     /* Native category padding still reserves exactly the same space. The owned
        material below follows the union of its real groups, not the full wrapper. */
@@ -295,6 +341,25 @@
     }
     ${enabled}[data-bc-page="home"] body :is(.bili-header__channel,.header-channel) :is(.channel-link,.channel-link__more,.channel-item) {
       border-color: transparent !important; box-shadow: none !important;
+    }
+    ${enabled}[data-bc-page="home"] body :is(.bili-header__channel,.header-channel) :is(
+      .channel-icons,.right-channel-container,.channel-items__left,.channel-items__right,
+      .header-channel-fixed-left,.header-channel-fixed-list,.header-channel-fixed-bottom-list,.header-channel-fixed-side-list
+    ) {
+      background: transparent !important; border-color: transparent !important; border-radius: 0; box-shadow: none !important;
+    }
+    ${enabled}[data-bc-page="home"] body :is(.bili-header__channel,.header-channel) :is(
+      .channel-icons,.right-channel-container,.channel-items__left,.channel-items__right,
+      .header-channel-fixed-left,.header-channel-fixed-list,.header-channel-fixed-bottom-list,.header-channel-fixed-side-list
+    )::before,
+    ${enabled}[data-bc-page="home"] body :is(.bili-header__channel,.header-channel) :is(
+      .channel-icons,.right-channel-container,.channel-items__left,.channel-items__right,
+      .header-channel-fixed-left,.header-channel-fixed-list,.header-channel-fixed-bottom-list,.header-channel-fixed-side-list
+    )::after {
+      background: transparent !important; border-color: transparent !important; box-shadow: none !important;
+    }
+    ${enabled}[data-bc-page="home"] body :is(.bili-header__channel,.header-channel) .channel-items__right {
+      border-left-color: var(--bc-border) !important;
     }
     ${enabled}[data-bc-page="home"] :is(.bc-theme-surface-glass,#bc-theme-channel-glass)[data-bc-surface-kind="categories"] {
       ${material('light')}
@@ -308,7 +373,7 @@
     ${enabled}[data-bc-page="home"] body .recommended-swipe .carousel-footer :where(p,a,.carousel-footer-title,.carousel-footer-subtitle) {
       color: var(--bc-foreground, var(--bc-text-color)); text-shadow: var(--bc-text-shadow);
     }
-    ${enabled}[data-bc-page="home"][data-bc-material="clear"] body :where(${homeCards}) { box-shadow: none; }
+    ${enabled}[data-bc-page="home"][data-bc-material="clear"] body :is(${homeSurfaces}) { box-shadow: none; }
     /* Exactly one search shell. Native #nav-searchform and input specificity
        previously left a pale outer form and a dark rectangle behind its text. */
     ${enabled}[data-bc-page="home"] body .bili-header__bar :is(#nav-searchform,.nav-search-form,.center-search__bar:not(:has(#nav-searchform,.nav-search-form))) {

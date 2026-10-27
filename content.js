@@ -8,6 +8,7 @@
   const fallback = "linear-gradient(135deg, var(--bc-wallpaper-start, #244958), var(--bc-wallpaper-mid, #56416d) 48%, var(--bc-wallpaper-end, #1d5965))";
   const pageTheme = globalThis.BiliThemePage;
   const minimalist = globalThis.BiliThemeMinimalist;
+  const feedLayout = minimalist.createFeedLayout();
   const active = () => current?.enabled || current?.minimalistEnabled;
   const layoutMarkers = `${pageTheme.layoutSelector}, .bili-header__bar, .header-channel`;
   const navigationHideRules = BC.NAV_ITEMS.map((entry) =>
@@ -214,6 +215,8 @@
     const computed = getComputedStyle(element);
     if (!rect.width || !rect.height || rect.bottom <= 0 || rect.top >= innerHeight ||
         computed.visibility !== "visible" || Number(computed.opacity) === 0) return null;
+    for(let ancestor=element.parentElement;ancestor&&ancestor!==root;ancestor=ancestor.parentElement)
+      if(Number(getComputedStyle(ancestor).opacity)===0)return null;
     const category=root.getAttribute('data-bc-page')==='home' && element.matches('.bili-header__channel,.header-channel');
     if(category) {
       const bounds=[];
@@ -222,12 +225,13 @@
         if(r.width && r.height && s.visibility==='visible' && Number(s.opacity)!==0)bounds.push(r);
       }
       if(bounds.length) {
-        const left=Math.max(rect.left,Math.min(...bounds.map(r=>r.left))),right=Math.min(rect.right,Math.max(...bounds.map(r=>r.right)));
-        const top=Math.max(rect.top,Math.min(...bounds.map(r=>r.top))),bottom=Math.min(rect.bottom,Math.max(...bounds.map(r=>r.bottom)));
+        const padding=parseFloat(getComputedStyle(root).getPropertyValue('--bc-category-paint-padding'))||0;
+        const left=Math.max(rect.left,Math.min(...bounds.map(r=>r.left))-padding),right=Math.min(rect.right,Math.max(...bounds.map(r=>r.right))+padding);
+        const top=Math.max(rect.top,Math.min(...bounds.map(r=>r.top))-padding),bottom=Math.min(rect.bottom,Math.max(...bounds.map(r=>r.bottom))+padding);
         rect={left,top,right,bottom,width:Math.max(0,right-left),height:Math.max(0,bottom-top)};
       }
     }
-    return { rect,category, zIndex: parseInt(computed.zIndex, 10), radius: category?'12px':computed.borderRadius,
+    return { rect,category, zIndex: parseInt(computed.zIndex, 10), radius: category?getComputedStyle(root).getPropertyValue('--bc-category-radius'):computed.borderRadius,
       nativeBackdrop: Boolean(computed.backdropFilter && computed.backdropFilter !== "none") };
   }
 
@@ -276,7 +280,7 @@
       // Content frost sits between wallpaper and native content. Popups follow
       // their native stacking context without changing that context's geometry.
       let zIndex=-1;
-      if(level==="strong") {
+      if(level==="strong" || node.closest('.palette-button-wrap')) {
         for(let parent=node;parent && parent!==root;parent=parent.parentElement) {
           const z=parseInt(getComputedStyle(parent).zIndex,10);
           if(Number.isFinite(z) && z>0) {zIndex=z-1;break;}
@@ -588,6 +592,8 @@
     if (current.minimalistEnabled && minimalist.isHome(location.href, root.getAttribute("data-bc-page"))) {
       if (root.getAttribute("data-bc-minimalist") !== "true") root.setAttribute("data-bc-minimalist", "true");
     } else if (root.hasAttribute("data-bc-minimalist")) root.removeAttribute("data-bc-minimalist");
+    feedLayout.update(minimalist.isHome(location.href,root.getAttribute('data-bc-page')) &&
+      (current.enabled || root.hasAttribute('data-bc-minimalist')));
     if (current.enabled) applyTokens();
     if (surfacesDirty && current.enabled && current.material === "glass") scheduleHeaderGlass();
     syncCommentScope();
@@ -634,6 +640,7 @@
   }
 
   function unmount() {
+    feedLayout.stop();
     wallpaperSampleGeneration += 1;
     wallpaperTone = undefined;
     observer.disconnect();

@@ -64,7 +64,8 @@ export async function runHomescreenChecks({cdp,base,until,screenshots,mode}) {
     return paint.left>outer.left && paint.top>outer.top && paint.right<outer.right && paint.bottom<outer.bottom &&
       groups.every(r=>r.left>=paint.left-.1 && r.right<=paint.right+.1 && r.top>=paint.top-.1 && r.bottom<=paint.bottom+.1);
   })()`),true,'category frost contains the real navigation groups and excludes native outer padding');
-  assert.notEqual(await css('#normal','backgroundColor'),'rgba(0, 0, 0, 0)');
+  assert.equal(await css('#normal','backgroundColor'),'rgba(0, 0, 0, 0)');
+  assert.notEqual(await css('#normal > .bili-video-card__wrap','backgroundColor'),'rgba(0, 0, 0, 0)');
   assert.equal(await css('#normal .bili-video-card__info','backgroundColor'),'rgba(0, 0, 0, 0)');
   assert.equal(await css('#normal .bili-video-card__info','boxShadow'),'none');
   for(const selector of ['#normal img','#normal picture','#normal']) {

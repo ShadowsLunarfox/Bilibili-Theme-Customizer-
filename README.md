@@ -145,13 +145,19 @@ See [TESTING.md](TESTING.md) for the feature audit, automated commands, and Chro
 
 **Bilibili controls layout; the theme controls appearance.** Header/search sizing, category flow, container margins, grid tracks/gaps, carousel spans, thumbnail ratios, title wrapping and responsive rules stay native. Legacy compact-navigation and custom-grid values remain saved but no longer alter the site.
 
+首页卡片的外层及内部包装可能带有不同的原生上边距，即使未开启筛选也会造成同排缩略图错位。扩展仅减少导致错位的多余正上边距，不生成负边距，不修改缩略图尺寸、原生网格及轮播跨度；主题和筛选均关闭后完整恢复。
+
+Homepage card slots and nested wrappers can carry unequal native top margins, including with filters off. The extension removes only excess positive margins; it never creates negative offsets or changes thumbnail dimensions, grid rules or carousel spans. Turning off both the theme and filters restores original margins.
+
+The category bar uses one padded glass paint layer behind its native groups. Video glass follows each content shell rather than stretched grid items. Floating controls receive individual glass surfaces, with a transparent toolbar wrapper. Native loading skeletons and blocked-media states use shared adaptive colors; pending content remains intact. Ad filtering removes only slots with explicit ad markers or attributes, including bare feed wrappers.
+
 Use **Homepage Filters** to explicitly hide ads, banner artwork, carousel, selected categories, decorations or promotional toolbar entries. Filtering is off by default and can work independently of the theme. Hiding banner artwork retains its native space so the header and categories keep their original flow. Registered ad slots are hidden as complete units; native grid placement reflows the remaining content. Ordinary titles and creators are never matched as ads.
 
 **Apply Glass Colors** changes only the material, colors, strength and optional background palette. It preserves wallpaper/media, navigation choices and filter preferences. The palette affects only the default homepage wallpaper. Glass uses tinted native backgrounds and separate, non-interactive blur layers that follow native rectangles. The layers never filter text or media and never change native layout or event targets.
 
 | Glass level | Components | Default blur / base tint alpha |
 | --- | --- | --- |
-| 1: navigation | Top/category bars, search navigation, profile/feed tabs | 12px / .24 |
+| 1: navigation | Top/category bars, search navigation, profile/feed tabs, individual floating controls | 12px / .24 |
 | 2: content | Video information, right sidebar, comments, dynamic/community cards, profile panels, floating tool panels | 18px / .46 |
 | 3: overlays | Menus, suggestions, popovers, dialogs, tooltips | 20px / .66 |
 
