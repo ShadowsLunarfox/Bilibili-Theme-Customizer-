@@ -121,12 +121,24 @@
     .palette-button-wrap .flexible-roll-btn-inner, .palette-button-wrap .flexible-btn-inner,
     .palette-button-wrap .float-button, .palette-button-wrap .top-btn, .palette-button-wrap .roll-btn`;
   const homeCards='.bili-video-card, .bili-live-card, .video-card:has(> .video-card__info)';
-  const homeSurfaces=`.bili-video-card > .bili-video-card__wrap, .bili-video-card > .bili-video-card__skeleton,
+  const homeShells=`.bili-video-card > .bili-video-card__wrap, .bili-video-card > .bili-video-card__skeleton,
     .bili-live-card > .bili-live-card__wrap, .bili-live-card > .bili-live-card__skeleton,
     .video-card:has(> .video-card__info), .floor-single-card > .floor-card.single-card > .floor-card-inner`;
+  // Direct information children only: wrappers can include media, stretch to a
+  // grid row, or contain hidden carousel sizing skeletons.
+  const homeVideoInfo=`.bili-video-card > .bili-video-card__wrap > .bili-video-card__info,
+    .bili-video-card > .bili-video-card__skeleton > .bili-video-card__skeleton--info,
+    .bili-live-card > .bili-live-card__wrap > .bili-live-card__info,
+    .bili-live-card > .bili-live-card__skeleton > .bili-live-card__skeleton--info,
+    .video-card > .video-card__info,
+    .floor-single-card > .floor-card.single-card > .floor-card-inner > .info-container`;
+  const homeVideoCover='.bili-video-card__image--wrap, .bili-video-card__skeleton--cover, .bili-live-card__image, .bili-live-card__skeleton--cover, .video-card__image--wrap, .cover-shim';
+  const homeInfoInner=`.bili-video-card__info--right, .bili-video-card__info--tit, .bili-video-card__info--bottom,
+    .bili-live-card__info--text, .bili-live-card__info--tit, .video-card__info--title`;
   const allContent=[comments,tools,'.bili-video-card__info,.video-card__info',...Object.values(profiles).map(p=>p.surfaces).filter(Boolean)].join(',');
   function surfaceGroups(page) {
-    return {light:`${navigation},${toolbarButtons}`,content:`${comments},${tools}${profiles[page]?.surfaces?', '+profiles[page].surfaces:''}${page==='home'?', '+homeSurfaces+', .recommended-swipe .recommended-swipe-body':''}`,strong:popovers};
+    const content=page==='home'?`${homeVideoInfo}, .recommended-swipe .recommended-swipe-body`:profiles[page]?.surfaces;
+    return {light:`${navigation},${toolbarButtons}`,content:`${comments},${tools}${content?', '+content:''}`,strong:popovers};
   }
   // Native elements retain every dimension, border width, font metric, layout,
   // overflow rule and breakpoint. Only appearance is changed here.
@@ -191,6 +203,77 @@
   }
 
   const enabled = 'html[data-bc-enabled="true"]';
+  const homeGrid=`${enabled}[data-bc-page="home"] body :is(.recommended-container_floor-aside,.recommended-container_overseas,.feed2) > .container`;
+  // Select actual card slots, never the multi-row carousel or its sizing shims.
+  const homeCardSlot=`${homeGrid} > :is(.feed-card,.bili-feed-card,.bili-video-card,.bili-live-card,.floor-single-card):has(.bili-video-card__wrap,.bili-video-card__skeleton,.bili-live-card__wrap,.bili-live-card__skeleton,.floor-card.single-card)`;
+  const visibleCard=':not(.hide):not(.hidden):not([hidden])';
+  const homeCardLayoutCSS=`
+    /* Carry the grid track's stretch through each verified block wrapper.
+       Intrinsic media/content still size the track; no card height is imposed. */
+    ${homeCardSlot}${visibleCard} { align-self: stretch; }
+    ${homeCardSlot}${visibleCard},
+    ${homeCardSlot} :is(.bili-feed-card,.bili-video-card,.bili-live-card,.floor-single-card,
+      .bili-video-card__wrap,.bili-video-card__skeleton,.bili-live-card__wrap,.bili-live-card__skeleton,
+      .floor-card.single-card,.floor-card-inner)${visibleCard} {
+      display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0;
+    }
+    ${homeCardSlot} :is(.bili-video-card__wrap,.bili-video-card__skeleton,.bili-live-card__wrap,.bili-live-card__skeleton,.floor-card-inner) > :is(
+      .bili-video-card__image--link,.bili-video-card__image--wrap,.bili-video-card__skeleton--cover,
+      .bili-live-card__image--link,.bili-live-card__skeleton--cover,.cover-container,.cover-shim) {
+      flex: 0 0 auto;
+    }
+    ${homeCardSlot} :is(.bili-video-card__wrap > .bili-video-card__info,.bili-video-card__skeleton > .bili-video-card__skeleton--info,
+      .bili-live-card__wrap > .bili-live-card__info,.bili-live-card__skeleton > .bili-live-card__skeleton--info) {
+      flex: 1 0 auto;
+    }
+    ${homeCardSlot} .bili-live-card__wrap > .bili-live-card__info:has(> .bili-live-card__info--text) { display: flex; }
+    ${homeCardSlot} :is(.bili-video-card__info > .bili-video-card__info--right:has(> .bili-video-card__info--bottom),.bili-live-card__info > .bili-live-card__info--text) {
+      display: flex; flex-direction: column; justify-content: space-between; flex: 1 1 auto; min-height: 0;
+    }
+    ${homeCardSlot} .floor-card-inner > .info-container {
+      display: flex; flex-direction: column; justify-content: space-between; flex: 1 0 auto;
+    }
+    /* The native special-card cover is height:100%. Inside a stretched flex
+       shell that consumes the entire row and pushes its caption outside it.
+       Let the existing ratio shim supply the media height, as on video cards. */
+    ${homeCardSlot} .floor-card-inner > .cover-container { height: auto; }
+    ${homeCardSlot} :is(.bili-video-card__info--right > .bili-video-card__info--tit,.bili-video-card__info--right > .bili-video-card__info--bottom,
+      .bili-live-card__info--text > .bili-live-card__info--tit,.bili-live-card__info--text > .bili-live-card__info--uname,
+      .info-container > .title,.info-container > .sub-title) { flex-shrink: 0; }
+  `;
+  // Caption padding belongs inside the glass, rather than between the cover
+  // and an unpadded text block. Restrict this to real feed slots so the
+  // carousel's hidden sizing cards retain their native intrinsic dimensions.
+  const homeCardSpacingScope=`${enabled}[data-bc-material="glass"][data-bc-page="home"] body :is(.recommended-container_floor-aside,.recommended-container_overseas,.feed2) > .container > :is(.feed-card,.bili-feed-card,.bili-video-card,.bili-live-card,.video-card,.floor-single-card)`;
+  const homeCardSpacingCSS=`
+    ${homeCardSpacingScope} :is(${homeVideoInfo}) {
+      box-sizing: border-box; min-width: 0; margin-top: 0;
+      padding: var(--bc-card-info-padding);
+    }
+    ${homeCardSpacingScope} .floor-card-inner > .cover-container { margin-bottom: 0; }
+    /* Live cards use an absolute loaded wrap and an invisible sizing skeleton.
+       Put the loaded content in flow so its padded title/uploader can size the
+       row, and let the caption grow past the site's one-line fixed height. */
+    ${homeCardSpacingScope} :is(.bili-live-card > .bili-live-card__wrap) { position: relative; }
+    ${homeCardSpacingScope} :is(.bili-live-card:has(> .bili-live-card__wrap:not(.hide):not([hidden])) > .bili-live-card__skeleton.hide) { display: none; }
+    ${homeCardSpacingScope} .bili-live-card__wrap > .bili-live-card__info { height: auto; }
+    ${homeCardSpacingScope} .bili-live-card__info--text > .bili-live-card__info--uname { flex-grow: 0; }
+  `;
+  // Domestic carousel only. Its grid placement is already correct; the native
+  // hidden shim omits row 2's information area, leaving the auto-height core
+  // shorter than its allocated tracks. Carry that existing stretch inward.
+  const homeCarousel=`${enabled}[data-bc-page="home"] body .recommended-container_floor-aside > .container > .recommended-swipe:has(> .recommended-swipe-core > .recommended-swipe-body)`;
+  const homeCarouselCSS=`
+    ${homeCarousel} { display: flex; flex-direction: column; min-height: 0; }
+    ${homeCarousel} > .recommended-swipe-core { flex: 1 1 auto; min-height: 0; }
+    /* The body/VUI frames already fill the core. Complete only the missing
+       media-height chain; native footer/controls remain over the image. */
+    ${homeCarousel} .carousel-area,
+    ${homeCarousel} .carousel-area > .carousel-area-img { height: 100%; }
+    ${homeCarousel} .carousel-item > .carousel-inner__img { display: block; }
+    ${homeCarousel} .carousel-item > .carousel-inner__img > img { object-fit: cover; }
+    ${homeCarousel} .carousel-area-img > .extension-tips-v2.using { height: 100%; padding-top: 0; }
+  `;
   const css = Object.entries(profiles).map(([name, profile]) => {
     const scope = `${enabled}[data-bc-page="${name}"] body`;
     const surfaces = `${comments}${profile.surfaces ? `, ${profile.surfaces}` : ""}`;
@@ -216,7 +299,7 @@
       ${area} :where(input,textarea)::placeholder { color: var(--bc-placeholder-color); opacity: 1; }
       ${area} :where(${textInputs}):focus-visible { outline: 2px solid var(--bc-focus); outline-offset: 2px; }
     `;
-  }).join("\n") + navigationCSS(enabled) + `
+  }).join("\n") + navigationCSS(enabled) + homeCardLayoutCSS + homeCardSpacingCSS + homeCarouselCSS + `
     ${enabled} { background-color: #101927; }
     /* The fixed wallpaper is an owned, out-of-flow paint layer. */
     ${enabled} body { background: transparent !important; }
@@ -264,12 +347,21 @@
       backdrop-filter: var(--bc-glass-filter); -webkit-backdrop-filter: var(--bc-glass-filter);
     }
     ${enabled} .bc-theme-surface-glass[data-bc-level="content"] { backdrop-filter: var(--bc-glass-filter-content); -webkit-backdrop-filter: var(--bc-glass-filter-content); }
+    /* One measured paint layer per verified information container. Its bounds
+       include the native thumbnail/title gap, never the image or grid slot. */
+    ${enabled}[data-bc-page="home"] .bc-theme-surface-glass[data-bc-surface-kind="video-info"] {
+      background: var(--bc-video-info-bg);
+      backdrop-filter: var(--bc-video-info-filter); -webkit-backdrop-filter: var(--bc-video-info-filter);
+      box-shadow: inset 0 0 0 1px var(--bc-video-info-border);
+    }
     ${enabled} :where(.bc-theme-popover-glass,.bc-theme-surface-glass[data-bc-level="strong"]) { backdrop-filter: var(--bc-glass-filter-strong); -webkit-backdrop-filter: var(--bc-glass-filter-strong); }
     @supports not (backdrop-filter: blur(1px)) {
       ${enabled} {
         --bc-glass-bg-light: var(--bc-glass-fallback-bg) !important;
         --bc-glass-bg-content: var(--bc-glass-fallback-bg) !important;
         --bc-glass-bg-strong: var(--bc-glass-fallback-bg) !important;
+        --bc-video-info-bg: var(--bc-glass-fallback-bg) !important;
+        --bc-video-info-filter: none !important;
       }
       ${enabled} :where(#bc-theme-header-glass,#bc-theme-channel-glass,.bc-theme-popover-glass,.bc-theme-surface-glass) { backdrop-filter: none; -webkit-backdrop-filter: none; }
     }
@@ -278,6 +370,8 @@
         --bc-glass-bg-light: var(--bc-glass-fallback-bg) !important;
         --bc-glass-bg-content: var(--bc-glass-fallback-bg) !important;
         --bc-glass-bg-strong: var(--bc-glass-fallback-bg) !important;
+        --bc-video-info-bg: var(--bc-glass-fallback-bg) !important;
+        --bc-video-info-filter: none !important;
       }
       ${enabled} :where(#bc-theme-header-glass,#bc-theme-channel-glass,.bc-theme-popover-glass,.bc-theme-surface-glass) { backdrop-filter: none; -webkit-backdrop-filter: none; }
     }
@@ -298,16 +392,15 @@
       background-color: var(--bc-input-bg); color: var(--bc-foreground, var(--bc-text-color)); border-color: var(--bc-glass-border);
     }
     ${enabled} body .palette-button-wrap > :where(button,.top-btn,.roll-btn):hover { background-color: var(--bc-hover-bg); border-color: var(--bc-glass-border-hover); }
-    /* A grid item may stretch beyond its content. Its native content shell
-       owns the glass, so neither tint nor shadow fills unused row space. */
+    /* Native shells and structural information children must not stack tints
+       beneath the one information paint layer, including hover/selected states. */
     ${enabled}[data-bc-page="home"] body :where(${homeCards}) {
       ${palette} --graph_bg_regular: var(--bc-skeleton-cover-bg);
       background: transparent !important; box-shadow: none; border-radius: var(--bc-card-radius);
     }
-    ${enabled}[data-bc-page="home"] body :is(${homeSurfaces}) {
-      ${palette} ${material('content')} border-radius: var(--bc-card-radius);
+    ${enabled}[data-bc-page="home"] body :is(${homeShells}) {
+      ${palette} background: transparent !important; box-shadow: none !important;
       color: var(--bc-foreground, var(--bc-text-color));
-      box-shadow: inset 0 0 0 1px var(--bc-glass-border), var(--bc-glass-shadow);
     }
     ${enabled}[data-bc-page="home"] body .floor-single-card > .floor-card.single-card {
       ${palette} --graph_bg_regular: var(--bc-skeleton-cover-bg);
@@ -317,8 +410,13 @@
     ${enabled}[data-bc-page="home"] body .floor-single-card > .floor-card.single-card > .layer {
       background: transparent !important; border-color: transparent; box-shadow: none;
     }
-    ${enabled}[data-bc-page="home"] body :where(${homeCards}) :is(.bili-video-card__info,.bili-live-card__info,.video-card__info) {
+    ${enabled}[data-bc-page="home"] body :is(${homeVideoInfo}),
+    ${enabled}[data-bc-page="home"] body :is(${homeVideoInfo}) :is(${homeInfoInner}) {
       background: transparent !important; border-color: transparent; border-radius: 0; box-shadow: none !important;
+    }
+    ${enabled}[data-bc-page="home"] body :is(${homeShells},${homeVideoInfo})::before,
+    ${enabled}[data-bc-page="home"] body :is(${homeShells},${homeVideoInfo})::after {
+      background: transparent !important; box-shadow: none !important; border-color: transparent;
     }
     ${enabled}[data-bc-page="home"] body :is(.bili-video-card,.bili-live-card) :is(.bili-video-card__skeleton--cover,.bili-video-card__image--wrap,.bili-live-card__skeleton--cover,.bili-live-card__image) {
       background-color: var(--bc-skeleton-cover-bg);
@@ -373,7 +471,6 @@
     ${enabled}[data-bc-page="home"] body .recommended-swipe .carousel-footer :where(p,a,.carousel-footer-title,.carousel-footer-subtitle) {
       color: var(--bc-foreground, var(--bc-text-color)); text-shadow: var(--bc-text-shadow);
     }
-    ${enabled}[data-bc-page="home"][data-bc-material="clear"] body :is(${homeSurfaces}) { box-shadow: none; }
     /* Exactly one search shell. Native #nav-searchform and input specificity
        previously left a pale outer form and a dark rectangle behind its text. */
     ${enabled}[data-bc-page="home"] body .bili-header__bar :is(#nav-searchform,.nav-search-form,.center-search__bar:not(:has(#nav-searchform,.nav-search-form))) {
@@ -433,6 +530,6 @@
     #limit-mask-wall::before { background: linear-gradient(transparent, var(--bc-popup-bg)) !important; }
     #limit-mask-wall::after { background: var(--bc-popup-bg) !important; }
   `;
-  globalThis.BiliThemePage = Object.freeze({ profiles, classify, css, shadowCSS, glassMaterial, navigationCSS, sampleBackdrop,surfaceGroups,
+  globalThis.BiliThemePage = Object.freeze({ profiles, classify, css, shadowCSS, glassMaterial, navigationCSS, sampleBackdrop,surfaceGroups,homeVideoInfo,homeVideoCover,homeCardLayoutCSS,homeCardSpacingCSS,homeCarouselCSS,
     layoutSelector: Object.values(profiles).map((p) => p.layout).filter(Boolean).join(", ") });
 })();

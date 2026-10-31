@@ -171,8 +171,7 @@ export async function runFilteredLayoutChecks({cdp,base,until,screenshots}) {
   await page.evaluate('document.querySelector("#normal-3").removeAttribute("data-is-ad")');
   await settle(page);await aligned('ad attribute removed');
   await patch({enabled:true,material:'glass',minimalistHideAds:false});
-  assert.equal(await page.evaluate('document.querySelectorAll("[data-bc-feed-margin]").length'),0,'already aligned rows need no compensation');
-  assert.equal(await page.evaluate('[...document.querySelectorAll("#first-grid > *")].some(n=>n.hasAttribute("style"))'),false,'original absence of inline styles is restored');
+  assert.equal(await page.evaluate('[...document.querySelectorAll("[data-bc-feed-margin]")].every(n=>getComputedStyle(n).marginTop==="0px")'),true,'common row margins are cleared along with unequal margins');
   await patch({minimalistEnabled:false});
   await page.resize(1920,1080);await settle(page);
   compare(native,await measure(page),'filter removal restores all native margins');

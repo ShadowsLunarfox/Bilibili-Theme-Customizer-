@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { minimalistFixture } from "./minimalist.mjs";
-import { measure,compare,settle,runParity } from "./layout-parity.mjs";
+import { measureNativeLayout as measure,compare,settle,runParity } from "./layout-parity.mjs";
 
 export function liquidFixture(BC) {
   // Native dark-mode backing layers and a nested search field reproduce the
@@ -46,16 +46,17 @@ export async function runLiquidChecks({cdp,base,until,screenshots}) {
   const images=await page.evaluate('[...document.images].map(i=>i.src)');
   const backing=await css('#normal > .bili-video-card__wrap','backgroundColor');
   await capture('frosted-native');await patch({enabled:true});
-  compare(original,await measure(page),'frosted homepage native geometry');
+  compare(original,await measure(page),'frosted homepage outer geometry',{cardStretch:true});
   await until(page,'document.querySelector(".bc-theme-surface-glass[data-bc-level=content]") !== null');
-  for(const selector of ['.bili-header__bar','#normal > .bili-video-card__wrap','.nav-search-form'])assert.notEqual(await css(selector,'backgroundColor'),'rgba(0, 0, 0, 0)',selector+' has tinted glass');
+  await until(page,'document.querySelector("[data-bc-surface-kind=video-info]") !== null');
+  for(const selector of ['.bili-header__bar','[data-bc-surface-kind=video-info]','.nav-search-form'])assert.notEqual(await css(selector,'backgroundColor'),'rgba(0, 0, 0, 0)',selector+' has tinted glass');
   await until(page,'document.querySelector("[data-bc-surface-kind=categories]") !== null');
   assert.notEqual(await css('[data-bc-surface-kind=categories]','backgroundColor'),'rgba(0, 0, 0, 0)');
   for(const selector of ['#normal img','#normal .bili-video-card__info','.bili-header__bar','.bili-header__channel'])assert.equal(await css(selector,'backdropFilter'),'none','no native containing-block change: '+selector);
   assert.equal(await css('#normal img','filter'),'none');
   assert.deepEqual(await page.evaluate('[...document.images].map(i=>i.src)'),images);
   assert.match(await css('#bc-theme-header-glass','backdropFilter'),/blur\(12px\)/);
-  assert.match(await css('.bc-theme-surface-glass[data-bc-level=content]','backdropFilter'),/blur\(18px\)/);
+  assert.match(await css('[data-bc-surface-kind=video-info]','backdropFilter'),/blur\(14px\)/);
   assert.equal(await css('#normal .bili-video-card__info','borderTopWidth'),'0px','painted rim preserves native border width');
   assert.equal(await css('#cat-channelTech','borderTopWidth'),'1px');
   await page.evaluate('document.querySelector("#avatar").click();document.querySelector("#search").dispatchEvent(new Event("input"))');
@@ -72,11 +73,11 @@ export async function runLiquidChecks({cdp,base,until,screenshots}) {
     await page.evaluate('chrome.runtime.sendMessage({type:"BC_THEME/BACKGROUND",payload:{dataUrl:'+JSON.stringify(image)+',name:'+JSON.stringify(name)+'}})');
     await until(page,'document.querySelector("#bc-theme-wallpaper")?.dataset.bcCustom === "true"');
     await until(page,name==='bright'?'Number(document.documentElement.style.getPropertyValue("--bc-glass-bg-content").match(/[\\d.]+/g)[3]) > .6':'document.documentElement.style.getPropertyValue("--bc-glass-bg-content").includes("0.46")');
-    const alpha=Number((await css('#normal > .bili-video-card__wrap','backgroundColor')).match(/[\d.]+/g)[3]);
+    const alpha=Number((await css('[data-bc-surface-kind=video-info]','backgroundColor')).match(/[\d.]+/g)[3]);
     if(name==='dark')darkAlpha=alpha;else assert.ok(alpha>darkAlpha,'bright wallpaper strengthens panels');
     assert.equal(await css('#normal h3 a','color'),'rgb(255, 255, 255)','white foreground stays stable; tint adapts first');
     assert.equal(await page.evaluate('document.documentElement.style.getPropertyValue("--bc-wallpaper-veil")'),'0');
-    compare(original,await measure(page),'wallpaper tint preserves geometry');
+    compare(original,await measure(page),'wallpaper tint preserves geometry',{cardStretch:true});
     await capture('frosted-home-'+name);
   }
   const frosted=await page.screenshot();
@@ -102,7 +103,7 @@ export async function runLiquidChecks({cdp,base,until,screenshots}) {
     const n=document.querySelector('[data-bc-surface-kind=categories]');
     return n && getComputedStyle(n).backdropFilter==='none';
   })()`);
-  compare(nativeFrost,await measure(page),'pre-existing native backdrop containing block retained');
+  compare(nativeFrost,await measure(page),'pre-existing native backdrop containing block retained',{cardStretch:true});
   assert.equal(await css('.bili-header__channel','backdropFilter'),'blur(3px)');
   await page.evaluate('document.querySelector(".bili-header__channel").style.removeProperty("backdrop-filter")');
   await page.evaluate(`(()=>{
@@ -120,12 +121,14 @@ export async function runLiquidChecks({cdp,base,until,screenshots}) {
   await cdp.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'},{name:'prefers-reduced-transparency',value:'reduce'}]},page.sessionId);
   await settle(page);
   assert.equal(await css('#bc-theme-header-glass','backdropFilter'),'none');
-  assert.match(await css('#normal > .bili-video-card__wrap','backgroundColor'),/0\.94/);
+  assert.match(await css('[data-bc-surface-kind=video-info]','backgroundColor'),/0\.94/);
+  assert.equal(await css('[data-bc-surface-kind=video-info]','backdropFilter'),'none');
   assert.equal(await css('#cat-channelTech','transitionDuration'),'0s');
   await cdp.send('Emulation.setEmulatedMedia',{features:[]},page.sessionId);
   await page.evaluate('(()=>{const s=document.querySelector("style[data-bc-owned=style]");globalThis.originalFrostCSS=s.textContent;s.textContent=s.textContent.replace("@supports not (backdrop-filter: blur(1px))","@supports (display: block)");})()');
   await settle(page);
-  assert.match(await css('#normal > .bili-video-card__wrap','backgroundColor'),/0\.94/);
+  assert.match(await css('[data-bc-surface-kind=video-info]','backgroundColor'),/0\.94/);
+  assert.equal(await css('[data-bc-surface-kind=video-info]','backdropFilter'),'none');
   assert.equal(await css('#bc-theme-header-glass','backdropFilter'),'none');
   await page.evaluate('document.querySelector("style[data-bc-owned=style]").textContent=originalFrostCSS');
   await patch({material:'clear'});

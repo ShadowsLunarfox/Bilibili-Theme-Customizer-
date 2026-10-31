@@ -16,6 +16,10 @@ import { runOfficialParity } from "./official-parity.mjs";
 import {homescreenFixture,runHomescreenChecks} from './homescreen.mjs';
 import {filteredLayoutFixture,runFilteredLayoutChecks,nestedLayoutFixture,runNestedLayoutChecks} from './filtered-layout.mjs';
 import {homeSurfacesFixture,runHomeSurfaceChecks} from './home-surfaces.mjs';
+import {cardAlignmentFixture,runCardAlignmentChecks} from './card-alignment.mjs';
+import {runVideoMaterialChecks} from './video-material.mjs';
+import {carouselAlignmentFixture,runCarouselAlignmentChecks} from './carousel-alignment.mjs';
+import {runScrollingChecks} from './scrolling.mjs';
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const browserExtraArgs = process.env.BC_TEST_NO_SANDBOX === "1" ? ["--no-sandbox"] : [];
@@ -24,6 +28,10 @@ const officialMode = process.env.BC_TEST_OFFICIAL === "1";
 const homeCaptureMode = process.env.BC_TEST_HOME_CAPTURE;
 const filteredLayoutMode = process.env.BC_TEST_FILTER_LAYOUT === '1';
 const surfaceMode = process.env.BC_TEST_HOME_SURFACES === '1';
+const cardAlignmentMode = process.env.BC_TEST_CARD_ALIGNMENT === '1';
+const videoMaterialMode = process.env.BC_TEST_VIDEO_MATERIAL === '1';
+const carouselAlignmentMode = process.env.BC_TEST_CAROUSEL_ALIGNMENT === '1';
+const scrollingMode = process.env.BC_TEST_SCROLLING;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8"));
 const bridge = `
@@ -181,6 +189,10 @@ async function runBrowser(executable) {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(nestedLayoutFixture(rt.BC));
       } else if (path === "/home-surfaces.html") {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(homeSurfacesFixture(rt.BC));
+      } else if (path === "/card-alignment.html") {
+        response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(cardAlignmentFixture());
+      } else if (path === "/carousel-alignment.html") {
+        response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(carouselAlignmentFixture());
       } else if (path === "/minimalist.html") {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(minimalistFixture(rt.BC));
       } else if (path === "/fixture.html") {
@@ -224,6 +236,10 @@ async function runBrowser(executable) {
     }
     if(homeCaptureMode){await runHomescreenChecks({cdp,base,until,screenshots:screenshotDirectory,mode:homeCaptureMode});return;}
     if(surfaceMode){await runHomeSurfaceChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
+    if(cardAlignmentMode){await runCardAlignmentChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
+    if(videoMaterialMode){await runVideoMaterialChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
+    if(carouselAlignmentMode){await runCarouselAlignmentChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
+    if(scrollingMode){await runScrollingChecks({cdp,base,until,screenshots:screenshotDirectory,baseline:scrollingMode==='before'});return;}
     if(filteredLayoutMode){
       await runFilteredLayoutChecks({cdp,base,until,screenshots:screenshotDirectory});
       await runNestedLayoutChecks({cdp,base,until,screenshots:screenshotDirectory});return;
@@ -378,6 +394,10 @@ async function runBrowser(executable) {
     await runFilteredLayoutChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runNestedLayoutChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runHomeSurfaceChecks({cdp,base,until,screenshots:screenshotDirectory});
+    await runCardAlignmentChecks({cdp,base,until,screenshots:screenshotDirectory});
+    await runVideoMaterialChecks({cdp,base,until,screenshots:screenshotDirectory});
+    await runCarouselAlignmentChecks({cdp,base,until,screenshots:screenshotDirectory});
+    await runScrollingChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runMinimalistChecks({ cdp, base, until, screenshots: screenshotDirectory, mp4: recordedMP4 });
     await runReferenceChecks({ cdp, base, until, screenshots: screenshotDirectory });
     await runCompatibilityMatrix({ cdp, base, until, mp4: recordedMP4,

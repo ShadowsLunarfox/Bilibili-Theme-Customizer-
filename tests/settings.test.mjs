@@ -26,6 +26,8 @@ test("settings validation and tokens preserve zero values and clear mode", () =>
   assert.equal(BC.tokens(settings)["--bc-header-alpha"], "0");
   assert.ok(Number(BC.tokens({ opacity: 37 })["--bc-header-alpha"])>0);
   assert.equal(BC.tokens({ material: "clear" })["--bc-blur"], "0px");
+  assert.equal(BC.tokens({opacity:0})['--bc-video-info-filter'],'none');
+  assert.equal(BC.tokens({material:'clear'})['--bc-video-info-filter'],'none');
   assert.notEqual(BC.tokens({ textColor: "#000000" })["--bc-input-bg"], BC.tokens({ textColor: "#ffffff" })["--bc-input-bg"]);
   assert.equal(BC.patchSettings(BC.DEFAULT, { revision: 900, schemaVersion: 99 }).revision, 0);
   assert.throws(() => BC.patchSettings(BC.DEFAULT, []));
@@ -46,11 +48,13 @@ test("restrained material tokens preserve wallpaper and supply local text contra
       const adapted=BC.tokens({textColor:color},background);
       const ink=adapted['--bc-foreground'].match(/\d+/g).map(Number);
       assert.equal(adapted['--bc-text-color'],color,'preferred color remains unchanged');
-      const rgba=adapted['--bc-glass-bg-content'].match(/[\d.]+/g).map(Number);
-      const panel=background.map((v,i)=>v*(1-rgba[3])+rgba[i]*rgba[3]);
-      assert.ok((Math.max(lum(ink),lum(panel))+.05)/(Math.min(lum(ink),lum(panel))+.05)>=4.5,'ink contrasts composited frosted panel');
-      const metadata=adapted['--bc-secondary-color'].match(/\d+/g).map(Number);
-      assert.ok((Math.max(lum(metadata),lum(panel))+.05)/(Math.min(lum(metadata),lum(panel))+.05)>=4.5,'metadata contrasts composited frosted panel');
+      for(const key of ['--bc-glass-bg-content','--bc-video-info-bg']) {
+        const rgba=adapted[key].match(/[\d.]+/g).map(Number);
+        const panel=background.map((v,i)=>v*(1-rgba[3])+rgba[i]*rgba[3]);
+        assert.ok((Math.max(lum(ink),lum(panel))+.05)/(Math.min(lum(ink),lum(panel))+.05)>=4.5,'ink contrasts composited frosted panel');
+        const metadata=adapted['--bc-secondary-color'].match(/\d+/g).map(Number);
+        assert.ok((Math.max(lum(metadata),lum(panel))+.05)/(Math.min(lum(metadata),lum(panel))+.05)>=4.5,'metadata contrasts composited frosted panel');
+      }
     }
   }
   assert.ok(Number(BC.tokens()['--bc-glass-opacity'])>0);
@@ -61,6 +65,8 @@ test("restrained material tokens preserve wallpaper and supply local text contra
   assert.equal(BC.tokens({material:'clear'})['--bc-glass-filter'],'none');
   const alpha=t=>Number(t.match(/[\d.]+/g)[3]);
   const normal=BC.tokens(),bright=BC.tokens({},[255,255,255]);
+  assert.equal(normal['--bc-video-info-bg'],normal['--bc-glass-bg-content'],'captions share the translucent content tint');
+  assert.equal(normal['--bc-video-info-filter'],'blur(14px) saturate(1.4)');
   assert.ok(alpha(normal['--bc-glass-bg-light'])<alpha(normal['--bc-glass-bg-content']));
   assert.ok(alpha(normal['--bc-glass-bg-content'])<alpha(normal['--bc-glass-bg-strong']));
   assert.ok(alpha(bright['--bc-glass-bg-content'])>alpha(normal['--bc-glass-bg-content']));

@@ -1,5 +1,5 @@
 /* Appearance and explicit filtering. Native grids remain in charge of layout;
-   homepage rows compensate for unequal margins on native card wrappers. */
+   their row gaps replace legacy top margins on homepage card wrappers. */
 (() => {
   const BC=globalThis.BiliTheme;
   const scope='html[data-bc-minimalist="true"][data-bc-page="home"]';
@@ -54,13 +54,23 @@
   function createFeedLayout() {
     const gridSelector='.recommended-container_floor-aside > .container';
     const cards='.feed-card,.bili-feed-card,.bili-video-card,.floor-single-card,.bili-live-card';
-    const covers='.bili-video-card__image--wrap,.bili-live-card__image--wrap,.bili-live-card__cover,.video-card__image--wrap';
+    const covers=globalThis.BiliThemePage.homeVideoCover;
+    const layoutNodes=`${gridSelector},${cards},${covers},.bili-video-card__wrap,.bili-video-card__skeleton,.bili-live-card__wrap,.bili-live-card__skeleton,.floor-card,.floor-card-inner,.cover-container`;
+    const previousStyle=document.createElement('i').style;
     const saved=new Map(),grids=new Set();
     let enabled=false,frame=0,body;
     const resize=new ResizeObserver(schedule);
     const mutations=new MutationObserver(records=>{
-      if(records.some(r=>r.target.closest?.('.recommended-container_floor-aside') ||
-          [...r.addedNodes||[]].some(n=>n.nodeType===1 && (n.matches(gridSelector)||n.querySelector(gridSelector)))))schedule();
+      const relevant=n=>n.nodeType===1 && (n.matches(layoutNodes)||n.querySelector(layoutNodes));
+      const changed=r=>{
+        if(!r.target.closest?.('.recommended-container_floor-aside')||!r.target.matches(layoutNodes))return false;
+        if(r.attributeName!=='style')return true;
+        previousStyle.cssText=r.oldValue||'';
+        return ['margin','margin-top','display','position'].some(key=>previousStyle.getPropertyValue(key)!==r.target.style.getPropertyValue(key));
+      };
+      if(records.some(r=>r.type==='attributes'
+        ? changed(r)
+        : [...r.addedNodes,...r.removedNodes].some(relevant)))schedule();
     });
     function restore() {
       for(const [node,original] of saved) {
@@ -74,7 +84,7 @@
     }
     function watch() {
       body=document.body;
-      if(body)mutations.observe(body,{childList:true,subtree:true,attributes:true,
+      if(body)mutations.observe(body,{childList:true,subtree:true,attributes:true,attributeOldValue:true,
         attributeFilter:['class','style','hidden','data-is-ad','data-ad-id']});
     }
     function reconcile() {
@@ -88,9 +98,10 @@
         if(!grids.has(grid)){grids.add(grid);resize.observe(grid);}
       }
       for(const grid of grids)if(!found.has(grid)){resize.unobserve(grid);grids.delete(grid);}
-      // A nested block margin can collapse with another block margin. Reduce
-      // one positive margin at a time and remeasure; never create a negative
-      // offset, alter grid tracks/gaps, or stretch the carousel to cover a gap.
+      // Old nth-of-type rules add 40px/24px on top of the grid's row gap.
+      // Equal margins on a whole row are excess spacing too. Clear positive
+      // margins along each real cover's wrapper chain, including collapsed
+      // nested margins, while retaining native tracks, gaps and media ratios.
       for(let pass=0;pass<6;pass++) {
         const changes=new Map();
         for(const grid of found) {
@@ -98,37 +109,21 @@
           const layout=getComputedStyle(grid);
           if(layout.display!=='grid' || !['normal','stretch','start'].includes(layout.alignItems) ||
               layout.gridAutoFlow!=='row')continue;
-          const rows=[];
           for(const {node,style} of slots) {
             if(!node.matches(cards)||style.display==='none'||!['static','relative'].includes(style.position))continue;
             // Only single-row, normally aligned cards can share this correction.
             if(!['auto','normal','stretch','start'].includes(style.alignSelf)||
                 /span\s+(?:[2-9]|\d{2,})/.test(style.gridRow)||
                 Number(style.gridRowEnd)-Number(style.gridRowStart)>1)continue;
-            const rect=node.getBoundingClientRect(),margin=parseFloat(style.marginTop);
-            if(!rect.width||!rect.height||!Number.isFinite(margin))continue;
-            const cover=node.matches(covers)?node:node.querySelector(covers);
-            const visible=cover||node.querySelector('.bili-video-card,.bili-live-card,.floor-single-card')||node;
-            const visual=visible.getBoundingClientRect();
+            const cover=(node.matches(covers)?[node]:[...node.querySelectorAll(covers)])
+              .find(part=>{const r=part.getBoundingClientRect();return r.width&&r.height;});
+            if(!cover)continue;
+            const visual=cover.getBoundingClientRect();
             if(!visual.width||!visual.height)continue;
-            const spacing=[];
-            for(let part=visible;part&&node.contains(part);part=part.parentElement) {
+            for(let part=cover;part&&node.contains(part);part=part.parentElement) {
               const margin=parseFloat(getComputedStyle(part).marginTop)||0;
-              if(margin>0)spacing.push({node:part,margin});
+              if(margin>0)changes.set(part,0);
               if(part===node)break;
-            }
-            const top=rect.top-margin;
-            let row=rows.find(row=>Math.abs(row.top-top)<1);
-            if(!row){row={top,cards:[]};rows.push(row);}
-            row.cards.push({node,margin,visualTop:visual.top,spacing});
-          }
-          for(const row of rows) {
-            const visualTop=Math.min(...row.cards.map(card=>card.visualTop));
-            for(const card of row.cards) {
-              const difference=card.visualTop-visualTop;
-              if(difference<=1/64)continue;
-              const largest=card.spacing.reduce((a,b)=>!a||b.margin>a.margin?b:a,null);
-              if(largest)changes.set(largest.node,Math.max(0,largest.margin-difference));
             }
           }
         }
@@ -151,10 +146,10 @@
     }
     function update(active) {
       if(!active){stop();return;}
+      const starting=!enabled || body!==document.body;
       enabled=true;
       if(body!==document.body){mutations.disconnect();watch();}
-      window.addEventListener('resize',schedule);
-      schedule();
+      if(starting){window.addEventListener('resize',schedule);schedule();}
     }
     return {update,stop};
   }

@@ -1,5 +1,5 @@
 ﻿import assert from 'node:assert/strict';
-import { measure,compare,settle,noFilters } from './layout-parity.mjs';
+import { measureNativeLayout as measure,compare,settle,noFilters } from './layout-parity.mjs';
 
 export async function runReferenceChecks({cdp,base,until}) {
   const page=await cdp.page(`${base}/minimalist.html`);
@@ -27,7 +27,7 @@ export async function runReferenceChecks({cdp,base,until}) {
   for(const key of Object.keys(noFilters).concat(['minimalistEnabled','minimalistGrid','minimalistCompactNav']))assert.equal(after.settings[key],before.settings[key],key);
   assert.deepEqual(after.background,before.background);
   await popup.close();await page.activate();await settle(page);
-  compare(native,await measure(page),'visual preset retains native geometry');
+  compare(native,await measure(page),'visual preset retains outer geometry',{cardStretch:true});
   assert.match(await css('#bc-theme-wallpaper','backgroundImage'),/radial-gradient/);
   await patch({textColor:'#ffffff'});
   assert.equal(await page.evaluate('document.documentElement.style.getPropertyValue("--bc-text-color")'),'#ffffff');

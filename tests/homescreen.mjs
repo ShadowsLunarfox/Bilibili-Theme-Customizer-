@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {liquidFixture} from './liquid.mjs';
-import {measure,compare,settle,runParity} from './layout-parity.mjs';
+import {measureNativeLayout as measure,compare,settle,runParity} from './layout-parity.mjs';
 
 // Domestic-home component structure and native selector specificity. These
 // remain fixture styles; no site layout dimensions are copied into the theme.
@@ -65,7 +65,9 @@ export async function runHomescreenChecks({cdp,base,until,screenshots,mode}) {
       groups.every(r=>r.left>=paint.left-.1 && r.right<=paint.right+.1 && r.top>=paint.top-.1 && r.bottom<=paint.bottom+.1);
   })()`),true,'category frost contains the real navigation groups and excludes native outer padding');
   assert.equal(await css('#normal','backgroundColor'),'rgba(0, 0, 0, 0)');
-  assert.notEqual(await css('#normal > .bili-video-card__wrap','backgroundColor'),'rgba(0, 0, 0, 0)');
+  assert.equal(await css('#normal > .bili-video-card__wrap','backgroundColor'),'rgba(0, 0, 0, 0)');
+  await until(page,'document.querySelector("[data-bc-surface-kind=video-info]") !== null');
+  assert.notEqual(await css('[data-bc-surface-kind=video-info]','backgroundColor'),'rgba(0, 0, 0, 0)');
   assert.equal(await css('#normal .bili-video-card__info','backgroundColor'),'rgba(0, 0, 0, 0)');
   assert.equal(await css('#normal .bili-video-card__info','boxShadow'),'none');
   for(const selector of ['#normal img','#normal picture','#normal']) {

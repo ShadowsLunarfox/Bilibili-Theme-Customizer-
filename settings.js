@@ -269,6 +269,11 @@
     const rgba=opacity=>opacity?`rgba(${tint}, ${opacity})`:"transparent";
     const blur=scale=>`${glass?Math.round(current.blur*scale):0}px`;
     const filter = glass && current.blur ? "blur(var(--bc-glass-blur-light)) saturate(var(--bc-glass-saturation))" : "none";
+    // Keep wallpaper color and light visible through captions. Contrast is
+    // supplied by the adaptive content tint, without crushing the backdrop.
+    const videoFilter = glass && current.opacity && current.blur
+      ? `blur(${blur(7/9)}) saturate(1.4)`
+      : "none";
     const highlight = current.minimalistLiquidGlass ? .09 : .06;
     return {
       "--bc-surface-alpha": String(glass ? current.opacity/100 : 0),
@@ -285,6 +290,11 @@
       "--bc-glass-bg-light": rgba(light),
       "--bc-glass-bg-content": rgba(content),
       "--bc-glass-bg-strong": rgba(strong),
+      // Homepage information paint has a quieter rim and shorter blur. Reuse
+      // contrast adaptation and saved strength/ink rather than a fixed overlay.
+      "--bc-video-info-bg": rgba(content),
+      "--bc-video-info-filter": videoFilter,
+      "--bc-video-info-border": light ? (darkText ? "rgba(30, 40, 36, 0.10)" : "rgba(255, 255, 255, 0.10)") : "transparent",
       "--bc-glass-bg": "var(--bc-glass-bg-light)",
       "--bc-glass-filter": filter,
       "--bc-glass-filter-content": glass && current.blur ? "blur(var(--bc-glass-blur-content)) saturate(var(--bc-glass-saturation))" : "none",
@@ -296,9 +306,10 @@
       "--bc-glass-shadow-strong": light ? `0 12px 32px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, ${highlight})` : "none",
       "--bc-glass-radius": "16px",
       "--bc-card-radius": "10px",
+      "--bc-card-info-padding": "10px 12px 12px",
       "--bc-control-radius": "8px",
       "--bc-category-radius": "12px",
-      "--bc-category-paint-padding": "6px",
+      "--bc-category-paint-padding": "12px",
       "--bc-skeleton-cover-bg": glass && current.opacity ? (darkText ? "rgba(30, 40, 36, 0.10)" : "rgba(255, 255, 255, 0.10)") : "transparent",
       "--bc-skeleton-line-bg": glass && current.opacity ? (darkText ? "rgba(30, 40, 36, 0.18)" : "rgba(255, 255, 255, 0.18)") : "transparent",
       "--bc-skeleton-highlight": glass && current.opacity ? (darkText ? "rgba(255, 255, 255, 0.28)" : "rgba(255, 255, 255, 0.16)") : "transparent",

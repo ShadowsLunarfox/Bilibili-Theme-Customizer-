@@ -69,14 +69,21 @@
   const surfaceGlasses = new Map();
   let surfaceCandidates = new Map();
   let surfaceVisibility = new WeakMap();
+  let surfaceScrolls = new WeakMap();
   let surfacesDirty = true;
+  let documentSurfacesDirty = true;
+  const dirtySurfaceNodes=new Set();
   const categoryPaintSelectors='.channel-icons,.channel-items__left,.channel-items__right,.header-channel-fixed-left,.header-channel-fixed-list,.header-channel-fixed-bottom-list,.header-channel-fixed-side-list';
   const surfaceIntersectionObserver = new IntersectionObserver((entries) => {
     for (const entry of entries) surfaceVisibility.set(entry.target, entry.isIntersecting);
     scheduleHeaderGlass();
-  });
+  },{rootMargin:"400px 0px"});
   const surfaceResizeObserver = new ResizeObserver(scheduleHeaderGlass);
-  const surfaceStateObserver = new MutationObserver(scheduleHeaderGlass);
+  const surfaceStateObserver = new MutationObserver(records=>{
+    const changed=new Set(records.map(record=>record.target));
+    for(const [node] of surfaceCandidates)if(changed.has(node)||changed.has(node.parentElement))dirtySurfaceNodes.add(node);
+    scheduleHeaderGlass(false);
+  });
   let watchedHeaderBar;
   let watchedChannel;
   let glassFrame = 0;
@@ -193,31 +200,53 @@
     syncWallpaperPlayback();
   }
 
-  function placeGlass(layer, rect, zIndex, radius = "0px", nativeBackdrop = false, category = false) {
-    layer.style.setProperty("display", "block");
-    layer.style.setProperty("left", `${rect.left}px`);
-    layer.style.setProperty("top", `${rect.top}px`);
-    layer.style.setProperty("width", `${rect.width}px`);
-    layer.style.setProperty("height", `${rect.height}px`);
-    layer.style.setProperty("z-index", `${zIndex}`);
-    layer.style.setProperty("border-radius", radius);
-    if(category)layer.dataset.bcSurfaceKind="categories";
-    else delete layer.dataset.bcSurfaceKind;
+  function placeGlass(layer, rect, zIndex, radius = "0px", nativeBackdrop = false, category = false, videoInfo = false, scrolls = false) {
+    const set=(name,value)=>{if(layer.style.getPropertyValue(name)!==value)layer.style.setProperty(name,value);};
+    set("display", "block");
+    set("position",scrolls?"absolute":"fixed");
+    set("left", `${rect.left+(scrolls?scrollX:0)}px`);
+    set("top", `${rect.top+(scrolls?scrollY:0)}px`);
+    set("width", `${rect.width}px`);
+    set("height", `${rect.height}px`);
+    set("z-index", `${zIndex}`);
+    set("border-radius", radius);
+    const coordinateSpace=scrolls?"document":"viewport",kind=videoInfo?"video-info":category?"categories":null;
+    if(layer.dataset.bcScroll!==coordinateSpace)layer.dataset.bcScroll=coordinateSpace;
+    if(kind){if(layer.dataset.bcSurfaceKind!==kind)layer.dataset.bcSurfaceKind=kind;}
+    else if(layer.hasAttribute('data-bc-surface-kind'))delete layer.dataset.bcSurfaceKind;
     // Some site variants already frost their own surface. Preserve that native
     // containing block and avoid adding a second backdrop filter behind it.
-    if(nativeBackdrop)layer.style.setProperty("backdrop-filter","none");
-    else layer.style.removeProperty("backdrop-filter");
+    if(nativeBackdrop)set("backdrop-filter","none");
+    else if(layer.style.getPropertyValue("backdrop-filter"))layer.style.removeProperty("backdrop-filter");
   }
 
-  function measureGlassTarget(element) {
+  function measureGlassTarget(element,overscan=0) {
     if (!element) return null;
     let rect = element.getBoundingClientRect();
     const computed = getComputedStyle(element);
-    if (!rect.width || !rect.height || rect.bottom <= 0 || rect.top >= innerHeight ||
+    if (!rect.width || !rect.height || rect.bottom <= -overscan || rect.top >= innerHeight+overscan ||
         computed.visibility !== "visible" || Number(computed.opacity) === 0) return null;
-    for(let ancestor=element.parentElement;ancestor&&ancestor!==root;ancestor=ancestor.parentElement)
-      if(Number(getComputedStyle(ancestor).opacity)===0)return null;
-    const category=root.getAttribute('data-bc-page')==='home' && element.matches('.bili-header__channel,.header-channel');
+    let scrolls=!['fixed','sticky'].includes(computed.position);
+    for(let ancestor=element.parentElement;ancestor&&ancestor!==root;ancestor=ancestor.parentElement){
+      const s=getComputedStyle(ancestor);
+      if(Number(s.opacity)===0)return null;
+      if(['fixed','sticky'].includes(s.position) || (ancestor!==document.body && /auto|scroll/.test(s.overflowX+' '+s.overflowY)))scrolls=false;
+    }
+    const home=root.getAttribute('data-bc-page')==='home';
+    const category=home && element.matches('.bili-header__channel,.header-channel');
+    const videoInfo=home && element.matches(pageTheme.homeVideoInfo);
+    if(videoInfo) {
+      const shell=element.parentElement.getBoundingClientRect();
+      const cover=element.parentElement.querySelector(pageTheme.homeVideoCover)?.getBoundingClientRect();
+      // Paint only from the sharp cover's bottom to this information block's
+      // bottom. Keep native margins, line clamps, controls and row heights.
+      const left=Math.max(shell.left,cover?.width?cover.left:rect.left);
+      const right=Math.min(shell.right,cover?.width?cover.right:rect.right);
+      const top=cover?.height?Math.max(shell.top,Math.min(rect.top,cover.bottom)):rect.top;
+      const bottom=Math.min(shell.bottom,rect.bottom);
+      rect={left,top,right,bottom,width:Math.max(0,right-left),height:Math.max(0,bottom-top)};
+      if(!rect.width || !rect.height)return null;
+    }
     if(category) {
       const bounds=[];
       for(const group of element.querySelectorAll(categoryPaintSelectors)) {
@@ -231,7 +260,9 @@
         rect={left,top,right,bottom,width:Math.max(0,right-left),height:Math.max(0,bottom-top)};
       }
     }
-    return { rect,category, zIndex: parseInt(computed.zIndex, 10), radius: category?getComputedStyle(root).getPropertyValue('--bc-category-radius'):computed.borderRadius,
+    const radius=videoInfo?`0px 0px ${getComputedStyle(root).getPropertyValue('--bc-card-radius')} ${getComputedStyle(root).getPropertyValue('--bc-card-radius')}`:
+      category?getComputedStyle(root).getPropertyValue('--bc-category-radius'):computed.borderRadius;
+    return { rect,category,videoInfo,scrolls, zIndex: parseInt(computed.zIndex, 10), radius,
       nativeBackdrop: Boolean(computed.backdropFilter && computed.backdropFilter !== "none") };
   }
 
@@ -242,6 +273,9 @@
     surfaceResizeObserver.disconnect();
     surfaceStateObserver.disconnect();
     surfaceVisibility = new WeakMap();
+    // Position changes caused by expanding content above the feed also change
+    // document height, even when the existing cards keep their own dimensions.
+    if(document.body)surfaceResizeObserver.observe(document.body);
     const candidates = new Map();
     const groups = pageTheme.surfaceGroups(root.getAttribute("data-bc-page"));
     // Overlay priority wins for elements also registered as content/navigation.
@@ -261,6 +295,11 @@
     for (const [node] of surfaceCandidates) {
       surfaceIntersectionObserver.observe(node);
       surfaceResizeObserver.observe(node);
+      if(root.getAttribute('data-bc-page')==='home' && node.matches(pageTheme.homeVideoInfo)) {
+        surfaceResizeObserver.observe(node.parentElement);
+        const cover=node.parentElement.querySelector(pageTheme.homeVideoCover);
+        if(cover)surfaceResizeObserver.observe(cover);
+      }
       if(node.matches('.bili-header__channel,.header-channel')) {
         for(const group of node.querySelectorAll(categoryPaintSelectors))surfaceResizeObserver.observe(group);
       }
@@ -269,14 +308,16 @@
     }
   }
 
-  function measureSurfaces(bar,channel) {
+  function measureSurfaces(bar,channel,includeDocument) {
     collectSurfaces();
     const surfaces=[];
     for(const [node,level] of surfaceCandidates) {
+      if(!includeDocument && surfaceScrolls.get(node)!==false && !dirtySurfaceNodes.has(node))continue;
       if(node===bar || node===channel || !node.isConnected || surfaceVisibility.get(node)===false)continue;
       if(bar?.contains(node) && node.matches('.v-popover-content,.nav-search-panel'))continue;
-      const geometry=measureGlassTarget(node);
+      const geometry=measureGlassTarget(node,level==='content'?400:0);
       if(!geometry)continue;
+      surfaceScrolls.set(node,geometry.scrolls);
       // Content frost sits between wallpaper and native content. Popups follow
       // their native stacking context without changing that context's geometry.
       let zIndex=-1;
@@ -291,7 +332,7 @@
     return surfaces;
   }
 
-  function paintSurfaces(surfaces) {
+  function paintSurfaces(surfaces,includeDocument) {
     const visible=new Set();
     for(const {node,level,geometry,zIndex} of surfaces) {
       visible.add(node);
@@ -304,10 +345,10 @@
         root.append(glass);
         surfaceGlasses.set(node,glass);
       }
-      glass.dataset.bcLevel=level;
-      placeGlass(glass,geometry.rect,zIndex,geometry.radius,geometry.nativeBackdrop,geometry.category);
+      if(glass.dataset.bcLevel!==level)glass.dataset.bcLevel=level;
+      placeGlass(glass,geometry.rect,zIndex,geometry.radius,geometry.nativeBackdrop,geometry.category,geometry.videoInfo,geometry.scrolls);
     }
-    for(const [node,glass] of surfaceGlasses) if(!visible.has(node)) {
+    for(const [node,glass] of surfaceGlasses) if(!visible.has(node) && (includeDocument || glass.dataset.bcScroll!=='document' || dirtySurfaceNodes.has(node) || !node.isConnected)) {
       glass.remove();surfaceGlasses.delete(node);
     }
   }
@@ -355,12 +396,15 @@
         panels.push({ panel, geometry });
       }
     }
-    const surfaces=measureSurfaces(bar,channel);
+    const includeDocument=documentSurfacesDirty||surfacesDirty;
+    documentSurfacesDirty=false;
+    const surfaces=measureSurfaces(bar,channel,includeDocument);
 
-    paintSurfaces(surfaces);
+    paintSurfaces(surfaces,includeDocument);
+    dirtySurfaceNodes.clear();
     if (channelGeometry) {
       if (!channelGlass.isConnected) root.append(channelGlass);
-      placeGlass(channelGlass, channelGeometry.rect, (channelGeometry.zIndex || 1001) - 1, channelGeometry.radius,channelGeometry.nativeBackdrop,channelGeometry.category);
+      placeGlass(channelGlass, channelGeometry.rect, (channelGeometry.zIndex || 1001) - 1, channelGeometry.radius,channelGeometry.nativeBackdrop,channelGeometry.category,false,channelGeometry.scrolls);
     } else {
       channelGlass.remove();
     }
@@ -373,7 +417,7 @@
     }
     const zIndex = (headerGeometry.zIndex || 1002) - 1;
     if (!headerGlass.isConnected) root.append(headerGlass);
-    placeGlass(headerGlass, headerGeometry.rect, zIndex, headerGeometry.radius,headerGeometry.nativeBackdrop);
+    placeGlass(headerGlass, headerGeometry.rect, zIndex, headerGeometry.radius,headerGeometry.nativeBackdrop,false,false,headerGeometry.scrolls);
 
     const visible = new Set();
     for (const { panel, geometry } of panels) {
@@ -388,7 +432,7 @@
         popoverGlasses.set(panel, glass);
         popoverResizeObserver.observe(panel);
       }
-      placeGlass(glass, geometry.rect, zIndex, geometry.radius,geometry.nativeBackdrop);
+      placeGlass(glass, geometry.rect, zIndex, geometry.radius,geometry.nativeBackdrop,false,false,geometry.scrolls);
     }
     for (const [panel, glass] of popoverGlasses) {
       if (visible.has(panel)) continue;
@@ -398,7 +442,8 @@
     }
   }
 
-  function scheduleHeaderGlass() {
+  function scheduleHeaderGlass(includeDocument=true) {
+    if(includeDocument!==false)documentSurfacesDirty=true;
     if (!current?.enabled || current.material !== "glass" || glassFrame || glassPending) return;
     // Arm before the next layout; never re-observe the root inside a resize
     // delivery loop, where a site mutation could cause an undelivered notification.
@@ -410,14 +455,20 @@
   }
 
   function onHeaderMutation(records) {
-    surfacesDirty = true;
-    if (records.some((record) => record.type !== "childList" ||
-        [...record.addedNodes, ...record.removedNodes].some((node) =>
-          node.nodeType !== Node.ELEMENT_NODE || !node.hasAttribute("data-bc-owned")))) scheduleHeaderGlass();
+    const structure=records.some(record=>record.type==='childList' &&
+      [...record.addedNodes,...record.removedNodes].some(node=>node.nodeType===Node.ELEMENT_NODE && !node.hasAttribute('data-bc-owned')));
+    if(structure)surfacesDirty=true;
+    scheduleHeaderGlass(structure);
+  }
+
+  function onGlassScroll(event) {
+    // Document-coordinate content layers move with native scrolling. Only
+    // fixed/sticky navigation and popups need per-frame viewport measurement.
+    scheduleHeaderGlass(event.target!==document && event.target!==root);
   }
 
   function onHeaderPointer(event) {
-    if (event.target.closest?.(".bili-header__bar")) {scheduleHeaderGlass();return;}
+    if (event.target.closest?.(".bili-header__bar")) {scheduleHeaderGlass(false);return;}
     // CSS-only hover/focus transitions need no class/style mutation. Watch the
     // registered popup and its trigger wrapper without polling or mousemove.
     for(const [node,level] of surfaceCandidates) {
@@ -425,14 +476,13 @@
       const parent=node.parentElement;
       if(node===event.target || node.contains(event.target) ||
           (parent && parent!==document.body && parent!==root && parent.contains(event.target))) {
-        scheduleHeaderGlass();break;
+        dirtySurfaceNodes.add(node);scheduleHeaderGlass(false);break;
       }
     }
   }
 
   function startHeaderGlass() {
     if (current.material !== "glass") { stopHeaderGlass(); return; }
-    window.addEventListener("scroll", scheduleHeaderGlass, { passive: true });
     window.addEventListener("resize", scheduleHeaderGlass);
     document.addEventListener("pointerover", onHeaderPointer, true);
     document.addEventListener("pointerout", onHeaderPointer, true);
@@ -440,7 +490,7 @@
     document.addEventListener("transitionstart", onHeaderPointer, true);
     document.addEventListener("transitionend", onHeaderPointer, true);
     document.addEventListener("animationend", onHeaderPointer, true);
-    document.addEventListener("scroll", scheduleHeaderGlass, {capture:true,passive:true});
+    document.addEventListener("scroll", onGlassScroll, {capture:true,passive:true});
     scheduleHeaderGlass();
   }
 
@@ -458,12 +508,14 @@
     surfaceResizeObserver.disconnect();
     surfaceStateObserver.disconnect();
     surfaceCandidates.clear();
+    surfaceScrolls=new WeakMap();
+    dirtySurfaceNodes.clear();
+    documentSurfacesDirty=true;
     surfacesDirty=true;
     for(const glass of surfaceGlasses.values())glass.remove();
     surfaceGlasses.clear();
     watchedHeaderBar = null;
     watchedChannel = null;
-    window.removeEventListener("scroll", scheduleHeaderGlass);
     window.removeEventListener("resize", scheduleHeaderGlass);
     document.removeEventListener("pointerover", onHeaderPointer, true);
     document.removeEventListener("pointerout", onHeaderPointer, true);
@@ -471,7 +523,7 @@
     document.removeEventListener("transitionstart", onHeaderPointer, true);
     document.removeEventListener("transitionend", onHeaderPointer, true);
     document.removeEventListener("animationend", onHeaderPointer, true);
-    document.removeEventListener("scroll", scheduleHeaderGlass, true);
+    document.removeEventListener("scroll", onGlassScroll, true);
     headerGlass.remove();
     channelGlass.remove();
     for (const glass of popoverGlasses.values()) glass.remove();
