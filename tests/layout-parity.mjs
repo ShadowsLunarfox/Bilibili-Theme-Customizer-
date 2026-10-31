@@ -31,7 +31,7 @@ export async function measure(page,{cardSpacing=true}={}) {
     // row gaps and bounds are checked independently with the full CSS active.
     const margins=${cardSpacing}?[]:[...document.querySelectorAll('[data-bc-feed-margin]')].map(node=>[node,node.getAttribute('data-bc-feed-margin')]);
     for(const [node] of margins)node.removeAttribute('data-bc-feed-margin');
-    if(!${cardSpacing} && sheet)sheet.textContent=original.replace(BiliThemePage.homeCardSpacingCSS,'');
+    if(!${cardSpacing} && sheet)sheet.textContent=original.replace(BiliThemePage.homeCardSpacingCSS,'').replace(BiliThemePage.watchLayoutCSS,'');
     try {
     const properties='display position top right bottom left width height min-width max-width min-height max-height margin-top margin-right margin-bottom margin-left padding-top padding-right padding-bottom padding-left border-top-width border-right-width border-bottom-width border-left-width box-sizing gap row-gap column-gap grid-template-columns grid-template-rows grid-column-start grid-column-end grid-row-start grid-row-end grid-auto-flow flex-direction flex-wrap flex-grow flex-shrink flex-basis align-items align-self justify-content order aspect-ratio font-family font-size font-weight line-height letter-spacing white-space overflow overflow-x overflow-y visibility z-index transform filter backdrop-filter contain isolation'.split(' ');
     const components={};
@@ -84,6 +84,8 @@ export async function assertVisualOnlyCSS(page) {
     const violations=[];
     const spacing=new CSSStyleSheet();spacing.replaceSync(BiliThemePage.homeCardSpacingCSS);
     const spacingRules=new Map([...spacing.cssRules].map(r=>[r.selectorText,r.style.cssText]));
+    const watch=new CSSStyleSheet();watch.replaceSync(BiliThemePage.watchLayoutCSS);
+    for(const r of watch.cssRules)spacingRules.set(r.selectorText,r.style.cssText);
     function visit(rules){for(const r of rules){
       if(r.cssRules)visit(r.cssRules);
       if(!r.style)continue;
@@ -93,6 +95,10 @@ export async function assertVisualOnlyCSS(page) {
         if(p.startsWith('--')||/^(background($|-)|color$|border-(color$|.+-color$|radius$|.+-radius$)|box-shadow$|text-shadow$|text-decoration($|-)|caret-color$|outline($|-)|opacity$|transition($|-))/.test(p))continue;
         if(p==='display'&&r.style[p]==='none'&&/data-bc-(min-options|hidden|channel-layout)/.test(r.selectorText))continue;
         if(p==='visibility'&&r.style[p]==='hidden'&&r.selectorText.includes('data-bc-min-options'))continue;
+        if(p==='fill'&&r.style[p]==='currentcolor'&&r.selectorText.startsWith('html[data-bc-enabled="true"][data-bc-page="video"] body :is(.video-toolbar-container, .video-toolbar) ')&&r.selectorText.endsWith(':is(svg, path)'))continue;
+        // Current native bili-comments is inline although its shadow children
+        // are blocks. This one host needs a block box to paint behind replies.
+        if(p==='display'&&r.style[p]==='block'&&r.selectorText==='html[data-bc-enabled="true"][data-bc-page="video"] body bili-comments')continue;
         if(r.selectorText.startsWith('html[data-bc-enabled="true"][data-bc-page="home"] body .recommended-container_floor-aside > .container > .recommended-swipe:has(> .recommended-swipe-core > .recommended-swipe-body)') &&
             ((p==='display'&&['flex','block'].includes(r.style[p]))||(p==='flex-direction'&&r.style[p]==='column')||
              (p==='min-height'&&r.style[p]==='0px')||(p==='flex-grow'&&r.style[p]==='1')||

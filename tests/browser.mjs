@@ -20,6 +20,9 @@ import {cardAlignmentFixture,runCardAlignmentChecks} from './card-alignment.mjs'
 import {runVideoMaterialChecks} from './video-material.mjs';
 import {carouselAlignmentFixture,runCarouselAlignmentChecks} from './carousel-alignment.mjs';
 import {runScrollingChecks} from './scrolling.mjs';
+import {watchPageFixture,runWatchPageChecks} from './watch-page.mjs';
+import {watchVariantFixture,runWatchRegressionChecks} from './watch-regression.mjs';
+import {nativeWatchFixture,runNativeWatchChecks} from './watch-native.mjs';
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const browserExtraArgs = process.env.BC_TEST_NO_SANDBOX === "1" ? ["--no-sandbox"] : [];
@@ -32,6 +35,9 @@ const cardAlignmentMode = process.env.BC_TEST_CARD_ALIGNMENT === '1';
 const videoMaterialMode = process.env.BC_TEST_VIDEO_MATERIAL === '1';
 const carouselAlignmentMode = process.env.BC_TEST_CAROUSEL_ALIGNMENT === '1';
 const scrollingMode = process.env.BC_TEST_SCROLLING;
+const watchPageMode = process.env.BC_TEST_WATCH_PAGE;
+const watchVariantMode = process.env.BC_TEST_WATCH_VARIANT;
+const nativeWatchMode = process.env.BC_TEST_NATIVE_WATCH;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8"));
 const bridge = `
@@ -183,6 +189,14 @@ async function runBrowser(executable) {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(liquidFixture(rt.BC));
       } else if (path === "/homescreen.html") {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(homescreenFixture(rt.BC));
+      } else if (path === "/watch-page.html") {
+        response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(watchPageFixture());
+      } else if (path === "/watch-variant.html") {
+        response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(watchVariantFixture());
+      } else if (path === "/watch-native.html") {
+        response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(nativeWatchFixture());
+      } else if (path === "/blank.html") {
+        response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end('<!doctype html><html><body></body></html>');
       } else if (path === "/filtered-layout.html") {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(filteredLayoutFixture(rt.BC));
       } else if (path === "/nested-layout.html") {
@@ -240,6 +254,9 @@ async function runBrowser(executable) {
     if(videoMaterialMode){await runVideoMaterialChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(carouselAlignmentMode){await runCarouselAlignmentChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(scrollingMode){await runScrollingChecks({cdp,base,until,screenshots:screenshotDirectory,baseline:scrollingMode==='before'});return;}
+    if(watchPageMode){await runWatchPageChecks({cdp,base,until,screenshots:screenshotDirectory,baseline:watchPageMode==='before'});return;}
+    if(watchVariantMode){await runWatchRegressionChecks({cdp,base,until,screenshots:screenshotDirectory,baseline:watchVariantMode==='before'});return;}
+    if(nativeWatchMode){await runNativeWatchChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(filteredLayoutMode){
       await runFilteredLayoutChecks({cdp,base,until,screenshots:screenshotDirectory});
       await runNestedLayoutChecks({cdp,base,until,screenshots:screenshotDirectory});return;
@@ -398,6 +415,9 @@ async function runBrowser(executable) {
     await runVideoMaterialChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runCarouselAlignmentChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runScrollingChecks({cdp,base,until,screenshots:screenshotDirectory});
+    await runWatchPageChecks({cdp,base,until,screenshots:screenshotDirectory});
+    await runWatchRegressionChecks({cdp,base,until,screenshots:screenshotDirectory});
+    await runNativeWatchChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runMinimalistChecks({ cdp, base, until, screenshots: screenshotDirectory, mp4: recordedMP4 });
     await runReferenceChecks({ cdp, base, until, screenshots: screenshotDirectory });
     await runCompatibilityMatrix({ cdp, base, until, mp4: recordedMP4,

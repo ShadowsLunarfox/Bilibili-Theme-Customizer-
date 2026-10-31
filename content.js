@@ -136,9 +136,10 @@
     }
   });
   const commentHosts = `bili-comments, bili-comment-thread-renderer, bili-comment-renderer,
-    bili-comment-reply-renderer, bili-comment-textarea, bili-textarea, bili-rich-text,
+    bili-comment-reply-renderer, bili-comment-box, bili-comment-textarea, bili-textarea, bili-rich-text,
     bili-text-button, bili-comment-user-info, bili-comment-action-buttons-renderer,
-    bili-comment-list-renderer`;
+    bili-comment-list-renderer, bili-comments-header-renderer, bili-comment-replies-renderer,
+    bili-comment-rich-textarea`;
   const attributes = [
     "data-bc-enabled", "data-bc-coverage", "data-bc-material",
     "data-bc-hidden", "data-bc-channel-layout", "data-bc-page",

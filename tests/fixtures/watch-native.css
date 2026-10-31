@@ -1,0 +1,50 @@
+/* Relevant, unmodified NANO 4.10.8/watch CSS rules retrieved 2026-10-31.
+ * https://s1.hdslb.com/bfs/static/player/main/core.9c6ca999.js
+ * https://s1.hdslb.com/bfs/static/player/main/widgets/npd.505.d22cfdd5.js
+ * https://s1.hdslb.com/bfs/static/player/main/widgets/npd.586.a82c83f3.js
+ * https://s1.hdslb.com/bfs/static/player/main/widgets/npd.auxiliary-helper.d6909e3f.js
+ * https://s1.hdslb.com/bfs/static/jinkela/video/css/video.0.8c3699a3aaf218112dadb300b3127b36bdacfe5c.css
+ */
+/* player-core.js */
+.bpx-docker-minor{position:relative;width:100%}
+.bpx-docker-minor:empty{background-color:#f4f4f4;background-color:var(--bpx-aux-header-bg,#f4f4f4);border-radius:2px}
+.bpx-docker-minor:not(:empty){background-color:#fff;background-color:var(--bpx-aux-content-bg,#fff)}
+/* widget-505.js */
+.bpx-player-sending-bar{-webkit-box-flex:0;-webkit-box-pack:justify;-ms-flex-pack:justify;background:#fff;background:var(--bpx-dmsend-main-bg,#fff);display:-webkit-box;display:-ms-flexbox;display:flex;-ms-flex:none;flex:none;font-size:12px;height:46px;justify-content:space-between;padding:0 12px 0 20px}
+.bpx-player-sending-bar .bpx-player-video-info{-ms-flex-negative:1;-webkit-box-align:center;-ms-flex-align:center;align-items:center;color:#505050;color:var(--bpx-dmsend-info-font,#505050);display:-webkit-box;display:-ms-flexbox;display:flex;flex-shrink:1;height:16px;line-height:12px;margin-right:12px;overflow:hidden;position:relative;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;white-space:nowrap;width:132px}
+.bpx-player-sending-bar .bpx-player-video-inputbar{-ms-flex-align:center;-ms-flex-positive:1;background:#f4f4f4;background:var(--bpx-dmsend-input-bg,#f4f4f4);border-radius:2px;color:#999;flex-grow:1;width:300px}
+.bpx-player-sending-bar .bpx-player-video-inputbar,.bpx-player-sending-bar .bpx-player-video-inputbar-wrap{-webkit-box-align:center;-webkit-box-flex:1;align-items:center;display:-webkit-box;display:-ms-flexbox;display:flex;position:relative}
+.bpx-player-sending-bar .bpx-player-video-inputbar-wrap .bpx-player-postpanel-carousel{background:#f4f4f4;background:var(--bpx-dmsend-input-bg,#f4f4f4);border:0;-webkit-box-sizing:border-box;box-sizing:border-box;color:#212121;color:var(--bpx-dmsend-input-font,#212121);display:none;font-size:13px;height:28px;line-height:28px;padding:0 5px;position:absolute;width:60%;z-index:15}
+.bpx-player-sending-bar .bpx-player-video-inputbar .bpx-player-dm-input{-webkit-box-flex:1;-ms-flex-positive:1;background:none;border:0;-webkit-box-sizing:border-box;box-sizing:border-box;color:#212121;color:var(--bpx-dmsend-input-font,#212121);flex-grow:1;font-size:12px;height:28px;line-height:28px;min-width:100px;padding:0 5px;width:100%;z-index:12}
+.bpx-player-sending-bar .bpx-player-video-inputbar .bpx-player-dm-hint a{fill:#757575;fill:var(--bpx-dmsend-hint-icon,#757575);color:#757575;color:var(--bpx-dmsend-hint-font,#757575);display:-webkit-inline-box;display:-ms-inline-flexbox;display:inline-flex;height:28px}
+/* widget-586.js */
+.bui-collapse .bui-collapse-header{background:#f4f4f4;background:var(--bpx-aux-header-bg,#f4f4f4);border-radius:2px;-webkit-box-sizing:border-box;box-sizing:border-box;color:#222;color:var(--bpx-aux-header-font,#222);cursor:pointer;height:100%;position:relative;width:100%}
+.bui-collapse .bui-collapse-header,.bui-collapse .bui-collapse-header .bui-collapse-arrow{-webkit-box-align:center;-ms-flex-align:center;align-items:center;display:-webkit-box;display:-ms-flexbox;display:flex;vertical-align:middle}
+.bui-collapse .bui-collapse-body{-webkit-box-sizing:border-box;box-sizing:border-box;overflow:hidden;-webkit-transform:translateZ(0);transform:translateZ(0);-webkit-transition:height .3s;transition:height .3s;width:100%}
+/* auxiliary-helper.js */
+.bpx-player-auxiliary{-ms-flex-negative:0;-webkit-box-sizing:border-box;box-sizing:border-box;flex-shrink:0;height:100%;position:relative;vertical-align:top;width:100%}
+.bpx-player-auxiliary .bpx-player-collapse .bui-collapse-body{background-color:#fff;background-color:var(--bpx-aux-content-bg,#fff);position:relative}
+.bpx-player-auxiliary .bpx-player-filter{border:none;border-radius:2px;-webkit-box-sizing:border-box;box-sizing:border-box;display:-webkit-box;display:-ms-flexbox;display:flex;font-size:16px;height:46px;line-height:46px;padding:0 10px 0 16px;position:relative;z-index:2}
+.bpx-player-auxiliary .bpx-player-dm-wrap{background-color:#fff;background-color:var(--bpx-aux-content-bg,#fff);position:relative}
+.bpx-player-auxiliary .bpx-player-dm-container .dm-info-row{color:#6d757a;color:var(--bpx-aux-content-font2,#6d757a);cursor:pointer;display:-webkit-box;display:-ms-flexbox;display:flex;font-size:12px;height:24px;line-height:24px;position:relative;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}
+.bpx-player-auxiliary .bpx-player-dm-container .dm-info-row .dm-info-time{-webkit-box-flex:0;-ms-flex:none;flex:none;overflow:hidden;padding-left:16px;position:relative;text-align:left;width:66px}
+.bpx-player-auxiliary .bpx-player-dm-container .dm-info-row .dm-info-dm{-webkit-box-flex:1;color:#222;color:var(--bpx-aux-content-font1,#222);-ms-flex:auto;flex:auto;overflow:hidden;pointer-events:auto;text-overflow:ellipsis;white-space:nowrap}
+.bpx-player-auxiliary .bpx-player-dm-container .dm-info-row .dm-info-date{-webkit-box-flex:0;-ms-flex:none;flex:none;overflow:hidden;white-space:nowrap;width:88px}
+.bpx-player-auxiliary .bpx-player-dm-btn-history{background-color:#f4f4f4;background-color:var(--bpx-aux-footer-bg,#f4f4f4);border-radius:2px;color:#505050;color:var(--bpx-aux-footer-font,#505050);cursor:pointer;display:none;height:31px;line-height:31px;text-align:center;width:100%}
+/* video.css */
+
+.upinfo-btn-panel .follow-btn.following[data-v-f1b16cb6] {
+  color: var(--text3);
+  color: var(--text3);
+  background-color: var(--graph_bg_thick);
+  background-color: var(--graph_bg_thick);
+}
+
+.video-pod .video-pod__header .header-bottom .right .subscribe-btn.subscribed[data-v-172405b0] {
+  color: var(--text3);
+  color: var(--text3);
+  background-color: var(--graph_bg_thick);
+  background-color: var(--graph_bg_thick);
+  border-color: var(--graph_bg_thick);
+  border-color: var(--graph_bg_thick);
+}

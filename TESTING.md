@@ -238,3 +238,45 @@ Document content glass now uses absolute document coordinates, so the browser sc
 | Maximum scroll-event glass drift | 2px | 0px |
 
 The regression also verifies uploader/panel bounds at six widths, loading transitions, newly visible rows after large scrolls, bounded layer count and refresh after a layout shift above the feed. Edge runs the same checks. The live browser connection remains unavailable; the evidence is from isolated local browser profiles. Run with `$env:BC_TEST_SCROLLING='1'; $env:BC_TEST_SCREENSHOTS='tests/artifacts/scroll-rendering'; node tests/browser.mjs`. Set the mode to `before` only to record a diagnostic baseline without enforcing the new bounds/performance assertions. The full suite includes this regression. JSON counts and screenshots are saved in `tests/artifacts/scroll-rendering`.
+
+## Watch-page surfaces and controls
+
+The supplied screenshots showed full-height sidebar/comment frost, native white danmaku/tag controls, low-contrast toolbar actions, a nested search backing and content flush against rounded panel edges. Video profiles register the creator, danmaku list, playlist and individual recommendation panels instead of the entire sidebar. Comments have a native-flow tint on the host or actual reply list, without an owned full-list blur sheet or per-thread layout overrides. The sticky reply backing uses the shared .94 fallback tint to keep underlying comment text from bleeding through the editor.
+
+Only the danmaku sending strip and its input/switch receive the explicit player-interior theme rules. Video, playback controls, progress, volume and fullscreen buttons keep their native properties. The native blue send/follow controls and active like/playlist states remain distinct. Search uses one shell. Glass-only padding is isolated in `watchLayoutCSS`, which the older native-layout audit temporarily removes while measuring its original geometry contract. The watch-page regression measures the actual full styles independently, including player size and columns/gaps.
+
+`tests/watch-page.mjs` reproduces these components, native white/gray colors, a live canvas-stream video, classic action buttons and nested comment shadow roots. It checks playback pause/resume, sharp media, unchanged native player/control appearance and dimensions, danmaku editing, selected states, list/description expansion, comment editing, VIP badges/images, six widths, four scroll positions, bounded blur-layer heights, reduced transparency, Clear and disabled restoration. The full suite includes it. To run alone:
+
+```powershell
+$env:BC_TEST_NO_SANDBOX='1'
+$env:BC_TEST_WATCH_PAGE='1'
+$env:BC_TEST_SCREENSHOTS='tests/artifacts/watch-page'
+node tests/browser.mjs
+```
+
+The `before` diagnostic mode captures the old theme without enforcing new assertions. Local before/after screenshots, scroll captures and metrics live under `tests/artifacts/watch-page`. The connected live browser was unavailable and the public watch-page fetch returned HTTP 412; these checks use a representative local fixture, not a claim of live-account verification.
+
+## Watch-page variant regression repair
+
+The initial watch fixture assumed open-shadow comments and a `.danmaku-box` parent. The follow-up screenshots showed that this was insufficient: clearing the comment container exposed replies against the wallpaper, nested BUI input backgrounds stayed white, and the auxiliary collapse/list and next-play labels missed the rules. The per-thread background/margin and comment-header padding changes were removed. A native-flow comment tint now works on modern comment hosts, classic reply lists and standalone lists. Known light-DOM lists paint their own background, with clear outer mounts and nested containers to prevent stacked tints; no comment box gets a backdrop filter.
+
+The sidebar registers BUI collapse and player-DM wrappers independently of `.danmaku-box`. Explicit appearance rules cover header/body/list rows, message/timestamp text, history controls and next-play labels. The sending-input shell owns its tint, while nested `.bui-input`, `.bui-input-wrap` and input elements stay clear. Native media/control protection and selected-state colors remain unchanged.
+
+`tests/watch-regression.mjs` reproduces light-DOM comments, a missing `.danmaku-box`, nested white BUI wrappers, explicit black row text, the expanded list/history footer, an unwrapped collapse header, and next-play labels. It checks exact native reply geometry, display-contents/standalone-list backing, input editing, author colors, six widths, scrolling, Clear and disabled restoration. The existing watch test continues to cover shadow comments and playback. Run this regression with `$env:BC_TEST_WATCH_VARIANT='1'` (or `before` to capture a diagnostic baseline); use `$env:BC_TEST_SCREENSHOTS='tests/artifacts/watch-repair'`. The full suite runs both variants. Local screenshots are under `tests/artifacts/watch-repair`; the connected live tab remains unavailable.
+
+## Current NANO and comment-source regression
+
+The older synthetic fixtures missed the current `.bpx-player-video-inputbar`, the NANO theme injected on `html`, and the native comment host's inline display. On 2026-10-31, direct public HTTP retrieval succeeded for the current watch application, NANO 4.10.8 and `bili-comments` build `bee9afe43a` (2026-10-22). No connected user tab was available. `tests/fixtures/watch-native.css` preserves relevant native stylesheet rules with their source URLs. `tests/watch-native.mjs` uses those rules and source-derived component structures, without downloading anything during normal regression runs.
+
+The watch theme overrides only NANO auxiliary/sending color variables at the dock, covering delayed styles and reparenting. Native graph color variables cover followed/subscribed controls. A block box on `bili-comments` gives its background continuous coverage behind its block shadow children. Shadow scanning includes the actual header, replies and rich-text editor components. The header's real `.bili-comments-bottom-fixed-wrapper` keeps its native inner `--bg1` backing while floating. Nested sidebar backgrounds share one tint. No reply spacing, full-column blur or scroll handler is added.
+
+The new checks cover actual player selector specificity, late theme injection, dock reparenting, 4.5:1 text contrast against a sampled white wallpaper, dark ink over a sampled black wallpaper, floating editor input/backing, followed/subscribed controls, native media/control geometry, four widths, Clear and disabled restoration. The narrow CSSOM exception allows `display:block` only on the watch comment host. The full Chrome suite includes these checks; the targeted checks also run in Edge. Run alone:
+
+```powershell
+$env:BC_TEST_NO_SANDBOX='1'
+$env:BC_TEST_NATIVE_WATCH='1'
+$env:BC_TEST_SCREENSHOTS='tests/artifacts/watch-native'
+node tests/browser.mjs
+```
+
+An optional `BC_TEST_REAL_COMMENT_BUNDLE` path loads the full downloaded official bundle in a separate isolated tab to verify that its registered `bili-comments` element defaults to inline. This probe was run locally; it does not claim end-to-end verification of a logged-in Bilibili page. Screenshots and the full Chrome log are under `tests/artifacts/watch-native`.

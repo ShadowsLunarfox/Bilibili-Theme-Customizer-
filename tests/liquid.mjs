@@ -142,10 +142,11 @@ export async function runLiquidChecks({cdp,base,until,screenshots}) {
     await until(page,'document.querySelector(".bc-theme-surface-glass[data-bc-level=content]") !== null');
     assert.notEqual(await css('#readable-card','backgroundColor'),'rgba(0, 0, 0, 0)',name+' content is frosted');
     assert.equal(await css('#readable-card','backdropFilter'),'none');
-    assert.notEqual(await css('bili-comments','backgroundColor'),'rgba(0, 0, 0, 0)',name+' comments are frosted');
+    assert.notEqual(await css('bili-comments','backgroundColor'),'rgba(0, 0, 0, 0)',name+' comments keep a readable backing');
     assert.equal(await css('#thumbnail','filter'),'none');
     if(name==='video'){
-      assert.notEqual(await css('.right-container','backgroundColor'),'rgba(0, 0, 0, 0)');
+      assert.equal(await css('.right-container','backgroundColor'),'rgba(0, 0, 0, 0)');
+      assert.notEqual(await css('.up-info-container','backgroundColor'),'rgba(0, 0, 0, 0)');
       assert.equal(await css('.bpx-player-container','backgroundColor'),'rgb(0, 0, 0)');
       assert.equal(await css('#player-control','color'),'rgb(255, 128, 0)');
     }

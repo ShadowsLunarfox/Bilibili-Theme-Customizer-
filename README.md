@@ -149,6 +149,12 @@ The domestic featured carousel fills its existing two-row grid allocation throug
 
 Loaded live cards size their row from the actual padded title and uploader instead of an invisible sizing skeleton. Ordinary glass panels use document coordinates and scroll with their cards; only fixed/sticky navigation and overlays need scroll-time positioning. Nearby panels are prepared before entering view, and unchanged glass styles are left alone. Preview opacity updates do not trigger a full feed-margin pass.
 
+Watch pages use individual creator, playlist and recommendation panels. Comments keep their native layout and spacing, with a readable tint on the comment host or visible reply list and no full-list blur. Title, description, tags and action rows have internal padding. Danmaku input wrappers, auxiliary list headers/rows/history controls, next-play labels, tags and search use readable theme colors; playback controls, video pixels, progress, blue action states and creator badges retain their native styling. Clear mode and disabling the extension restore native spacing and backgrounds.
+
+Current NANO player colors follow its auxiliary/sending theme variables, including detached docks and late-loaded player styles. The comment host paints one continuous backing behind replies; the floating comment editor has its own backing while scrolling. Following/subscribed controls use matching foreground and background colors.
+
+播放页按 UP 主、合集和推荐视频分别呈现面板；评论保留原生布局和间距，在评论容器或实际回复列表上提供清晰底色，不添加整列模糊。标题、简介、标签和操作栏保留内边距，弹幕输入框、列表、历史按钮及“接下来播放”采用清晰配色；视频画面、播放控制、进度条、选中状态和徽章保持原样。
+
 首页视频卡片通过 CSS Flexbox 将原生网格行的拉伸传递到内部包装和信息区，使同一行的信息面板底边对齐；标题保留原生两行截断，UP 主信息靠近底部。不会设置固定卡片高度，也不会通过 JavaScript 调整高度；网格列宽、间距、缩略图比例、轮播跨度及响应式断点不变。
 
 玻璃模式下，卡片信息区顶部留白 10px、左右及底部留白 12px，避免标题和 UP 主信息紧贴玻璃边缘；分类导航玻璃在原有容器范围内留出 12px 内边距。卡片行高随内容自然增长；切换透明模式或关闭主题后恢复原生信息区间距。

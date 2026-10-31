@@ -19,9 +19,10 @@
         .bili-dyn-live-users__container, .bili-dyn-topic-list__container`
     },
     video: {
-      layout: ".video-container, #bilibili-player, .video-info-container",
-      canvas: ".video-container, .left-container, .right-container, .video-page-container",
-      surfaces: `.right-container, .video-info-container, .video-toolbar, .up-info-container, .video-pod,
+      layout: ".video-container-v1, .video-container, #bilibili-player, .video-info-container",
+      canvas: ".video-container-v1, .video-container, .left-container, .right-container, .video-page-container",
+      surfaces: `.video-info-container, .video-toolbar, .video-toolbar-container, .up-panel-container, .up-info-container, .video-pod,
+        .base-video-sections-v1, .danmaku-box, .right-container .bui-collapse-wrap, .right-container .bpx-player-dm-wrap, .right-container .next-play,
         .video-page-card-small, .video-page-operator-card, .video-desc-container, #v_desc,
         .video-desc, .video-desc-v1, .video-desc-v2, .video-tag-container`,
       inner: ".desc-content, .desc-info, .video-info-detail, .video-info-title"
@@ -138,7 +139,9 @@
   const allContent=[comments,tools,'.bili-video-card__info,.video-card__info',...Object.values(profiles).map(p=>p.surfaces).filter(Boolean)].join(',');
   function surfaceGroups(page) {
     const content=page==='home'?`${homeVideoInfo}, .recommended-swipe .recommended-swipe-body`:profiles[page]?.surfaces;
-    return {light:`${navigation},${toolbarButtons}`,content:`${comments},${tools}${content?', '+content:''}`,strong:popovers};
+    // Watch comments use a native-flow tint, without a full-list blur layer.
+    // This also supports classic light-DOM and inaccessible shadow roots.
+    return {light:`${navigation},${toolbarButtons}`,content:`${page==='video'?'':comments+', '}${tools}${content?', '+content:''}`,strong:popovers};
   }
   // Native elements retain every dimension, border width, font metric, layout,
   // overflow rule and breakpoint. Only appearance is changed here.
@@ -273,6 +276,156 @@
     ${homeCarousel} .carousel-item > .carousel-inner__img { display: block; }
     ${homeCarousel} .carousel-item > .carousel-inner__img > img { object-fit: cover; }
     ${homeCarousel} .carousel-area-img > .extension-tips-v2.using { height: 100%; padding-top: 0; }
+  `;
+  const watch='html[data-bc-enabled="true"][data-bc-page="video"] body';
+  const watchComments=`${comments}, .left-container .reply-wrap, .left-container .reply-list, .left-container .comment-list`;
+  // NANO injects its theme on html. Override its native auxiliary/sending
+  // tokens at the dock instead of relying on individual BUI DOM wrappers.
+  // These are separate from the playback/overlay controls' color tokens.
+  const watchPlayerPalette=`
+    --bpx-dmsend-main-bg: var(--bc-glass-bg-strong);
+    --bpx-dmsend-input-bg: var(--bc-input-bg);
+    --bpx-dmsend-input-font: var(--bc-foreground);
+    --bpx-dmsend-info-font: var(--bc-secondary-color);
+    --bpx-dmsend-hint-font: var(--bc-secondary-color);
+    --bpx-dmsend-hint-icon: var(--bc-secondary-color);
+    --bpx-dmsend-switch-icon: var(--bc-secondary-color);
+    --bpx-dmsend-border: var(--bc-glass-border);
+    --bpx-dmsend-disable-button-bg: var(--bc-control-bg);
+    --bpx-dmsend-disable-button-text: var(--bc-disabled-color);
+    --bpx-aux-header-bg: var(--bc-control-bg);
+    --bpx-aux-header-font: var(--bc-foreground);
+    --bpx-aux-header-icon: var(--bc-secondary-color);
+    --bpx-aux-content-bg: transparent;
+    --bpx-aux-content-font1: var(--bc-foreground);
+    --bpx-aux-content-font2: var(--bc-secondary-color);
+    --bpx-aux-content-font3: var(--bc-secondary-color);
+    --bpx-aux-content-font4: var(--bc-secondary-color);
+    --bpx-aux-content-font5: var(--bc-secondary-color);
+    --bpx-aux-footer-bg: var(--bc-control-bg);
+    --bpx-aux-footer-font: var(--bc-secondary-color);
+    --bpx-aux-footer-font-hover: var(--bc-foreground);
+    --bpx-aux-button-bg: var(--bc-input-bg);
+    --bpx-aux-button-disabled-bg: var(--bc-control-bg);
+    --bpx-aux-float-bg: var(--bc-glass-fallback-bg);
+    --bpx-aux-float-hover-bg: var(--bc-hover-bg);
+    --bpx-aux-float-icon: var(--bc-secondary-color);
+    --bpx-aux-block-icon: var(--bc-secondary-color);
+    --bpx-aux-cover-bg: var(--bc-control-bg);
+    --bpx-aux-float-border: var(--bc-glass-border);
+    --bpx-aux-line-border: var(--bc-glass-border);
+    --bpx-aux-input-border: var(--bc-glass-border);`;
+  const watchGraphPalette=`
+    --graph_bg_thin: var(--bc-control-bg); --graph_bg_regular: var(--bc-input-bg);
+    --graph_bg_thick: var(--bc-control-bg); --graph_bg_regular_float: var(--bc-control-bg);
+    --graph_weak: var(--bc-control-bg); --graph_medium: var(--bc-hover-bg);
+    --graph_icon: var(--bc-secondary-color); --text_link: var(--bc-link-color);`;
+  const watchCSS=`
+    ${watch} :is(.video-container-v1,.video-container) { ${palette} ${watchGraphPalette} }
+    ${watch} .right-container {
+      ${palette} ${watchGraphPalette} color: var(--bc-foreground);
+      background: transparent !important; box-shadow: none !important;
+    }
+    ${watch} :is(.bpx-docker,.bpx-player-container,#danmukuBox) { ${watchPlayerPalette} }
+    ${watch} .bpx-docker-minor {
+      ${watchPlayerPalette} background: var(--bc-glass-bg-strong) !important; color: var(--bc-foreground);
+    }
+    /* One continuous backing for the dock; nested native/profile surfaces
+       otherwise compound their tints into an almost opaque black slab. */
+    ${watch} .danmaku-box:has(.bpx-docker-minor),
+    ${watch} .danmaku-box:has(.bpx-docker-minor) .danmaku-wrap,
+    ${watch} .bpx-docker-minor :is(.bpx-player-dm-wrap,.bui-collapse-wrap,.bui-collapse-header,.bui-collapse-body) {
+      background: transparent !important; box-shadow: none !important;
+    }
+    ${watch} .bpx-player-sending-area::before { background: var(--bc-glass-border) !important; }
+    ${watch} .bpx-player-dm-input::placeholder { color: var(--bc-placeholder-color) !important; opacity: 1; }
+    ${watch} :where(${watchComments}) {
+      ${watchGraphPalette}
+      background: var(--bc-glass-bg-strong) !important; border-radius: var(--bc-glass-radius);
+      box-shadow: inset 0 0 0 1px var(--bc-glass-border); color: var(--bc-foreground);
+    }
+    /* The native custom element defaults to inline; its block shadow children
+       otherwise paint outside the host's background. */
+    ${watch} bili-comments { display: block; }
+    ${watch} :where(${watchComments}) :where(${watchComments}) { background: transparent !important; box-shadow: none !important; }
+    /* A classic comment mount may only contain the header, or use display:
+       contents. Paint the real list when it exists, rather than relying on
+       that mount's box. Shadow-root lists retain their host-level backing. */
+    ${watch} :where(${watchComments}):has(.reply-list,.comment-list) { background: transparent !important; box-shadow: none !important; }
+    ${watch} .left-container :is(.reply-list,.comment-list,.reply-header,.reply-box,.reply-box-wrap) {
+      background: var(--bc-glass-bg-strong) !important; border-radius: var(--bc-glass-radius);
+    }
+    ${watch} .left-container :is(.reply-list,.comment-list) :is(.reply-list,.comment-list) { background: transparent !important; }
+    ${watch} :is(${watchComments}) :is(.reply-info,.reply-time,.reply-info button) { color: var(--bc-secondary-color) !important; }
+    ${watch} :is(.danmaku-box .bui-collapse-header,.danmaku-box .bui-collapse-body) {
+      background: transparent !important; color: var(--bc-foreground) !important;
+    }
+    ${watch} .right-container :is(.bpx-player-auxiliary-area,.bui-collapse-header,.bui-collapse-body,.bui-list,.bui-list-wrap,.bui-list-item,.bui-list-header) {
+      background: transparent !important; color: var(--bc-foreground) !important;
+    }
+    ${watch} .right-container :is(.bui-collapse-header,.bui-collapse-body):not(:where(.bui-collapse-wrap *,.danmaku-box *)) { background: var(--bc-glass-bg-content) !important; }
+    ${watch} .right-container :is(.bpx-player-dm-list,.dm-info-row,.dm-info-dm,.dm-info-time,.dm-info-date) { background: transparent !important; color: var(--bc-foreground) !important; }
+    ${watch} .right-container :is(.dm-info-time,.dm-info-date) { color: var(--bc-secondary-color) !important; }
+    ${watch} .right-container .bui-list-item:hover { background: var(--bc-hover-bg) !important; }
+    ${watch} .right-container :is(.bui-collapse-wrap,.bpx-player-dm-wrap) :is(button,[role="button"],[class^="bpx-player-dm-btn-"]) {
+      background: var(--bc-input-bg) !important; color: var(--bc-foreground) !important;
+    }
+    ${watch} .right-container :is(.next-play,.recommend-header,.rec-title) { color: var(--bc-foreground) !important; text-shadow: var(--bc-text-shadow); }
+    ${watch} :is(.video-toolbar-container,.video-toolbar) :is(.video-toolbar-left-item,.video-toolbar-right-item):not(.on):not(.active):not([aria-pressed="true"]) {
+      color: var(--bc-secondary-color) !important;
+    }
+    ${watch} :is(.video-toolbar-container,.video-toolbar) :is(.video-toolbar-left-item,.video-toolbar-right-item):not(.on):not(.active):not([aria-pressed="true"]) :is(svg,path) {
+      color: inherit; fill: currentColor;
+    }
+    ${watch} .video-tag-container :is(.tag,.tag-link,.tag-item) {
+      background: var(--bc-control-bg) !important; color: var(--bc-foreground) !important;
+      border-color: var(--bc-glass-border); box-shadow: inset 0 0 0 1px var(--bc-glass-border);
+    }
+    ${watch} .video-tag-container :is(.tag,.tag-link,.tag-item):hover { background: var(--bc-hover-bg) !important; }
+    ${watch} .video-tag-container :is(.tag,.tag-link,.tag-item) :is(.tag,.tag-link,.tag-item) {
+      background: transparent !important; border-color: transparent; box-shadow: none;
+    }
+    ${watch} :is(.video-pod,.base-video-sections-v1) a:not(:where(.active,.on,[aria-current="true"],[aria-current="page"],.active *,.on *)) { color: var(--bc-foreground) !important; }
+    ${watch} :is(.video-pod,.base-video-sections-v1) :is(a.active,a.on,a[aria-current="true"],a[aria-current="page"]) { color: var(--brand_blue,#00aeec) !important; }
+    ${watch} .recommend-list-v1 .rec-footer {
+      background: var(--bc-input-bg) !important; color: var(--bc-foreground) !important;
+      box-shadow: inset 0 0 0 1px var(--bc-glass-border);
+    }
+    /* Only the danmaku sending strip is themed inside the player. Video,
+       progress, playback menus and overlaid playback controls stay native. */
+    ${watch} .bpx-player-sending-bar {
+      background: var(--bc-glass-bg-strong) !important; color: var(--bc-foreground) !important;
+    }
+    ${watch} .bpx-player-sending-area { background: transparent !important; }
+    ${watch} .bpx-player-sending-bar .bpx-player-sending-input { background: var(--bc-input-bg) !important; }
+    ${watch} .bpx-player-sending-bar :is(.bui-input,.bui-input-wrap) { background: transparent !important; color: var(--bc-foreground) !important; border-color: var(--bc-glass-border); }
+    ${watch} .bpx-player-sending-bar :is(.bui-input-input,.bui-input input,.bui-input textarea) { background: transparent !important; color: var(--bc-foreground) !important; }
+    ${watch} .bpx-player-sending-bar :is(.bui-input-input,.bui-input input,.bui-input textarea)::placeholder { color: var(--bc-placeholder-color) !important; }
+    ${watch} :is(.bpx-player-sending-input,.bpx-player-sending-input input,.bpx-player-sending-input textarea,.bpx-player-dm-switch) {
+      background: transparent !important; color: var(--bc-foreground) !important;
+    }
+    ${watch} :is(.bpx-player-sending-input,.bpx-player-sending-input input,.bpx-player-sending-input textarea)::placeholder { color: var(--bc-placeholder-color) !important; }
+    ${watch} .bpx-player-sending-bar :is(.bpx-player-video-info,.bpx-player-video-info-online,.bpx-player-dm-setting) { color: var(--bc-foreground) !important; }
+    ${watch} .bpx-player-sending-bar :is(.bpx-player-dm-switch,.bpx-player-dm-setting) .bui-svg { color: var(--bc-foreground) !important; }
+    ${watch} :is(.fixed-nav .nav-item,.fixed-sidenav-storage .fixed-sidenav-item,.fixed-tools > button) {
+      background: var(--bc-glass-bg-strong) !important; color: var(--bc-foreground) !important; border-color: var(--bc-glass-border);
+    }
+    /* Match the homepage's single search shell on the watch page as well. */
+    ${watch} .bili-header__bar :is(#nav-searchform,.nav-search-form) {
+      background: var(--bc-input-bg) !important; box-shadow: inset 0 0 0 1px var(--bc-glass-border);
+    }
+    ${watch} .bili-header__bar :is(.center-search__bar:has(#nav-searchform,.nav-search-form),.nav-search-content,.nav-search-input) {
+      background: transparent !important; box-shadow: none !important; border-color: transparent !important;
+    }
+    ${watch} .bili-header__bar :is(#nav-searchform,.nav-search-form):focus-within { outline: 2px solid var(--bc-focus); outline-offset: 2px; }
+    ${watch} .bili-header__bar input:focus-visible { outline: none; }
+  `;
+  const watchLayoutCSS=`
+    html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body :is(.video-info-container,.video-toolbar,.video-toolbar-container,.video-desc-container,.video-tag-container,.up-panel-container) {
+      box-sizing: border-box; height: auto; padding: 16px;
+    }
+    html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body .video-info-container { padding-inline: 20px; }
+    html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body .video-page-card-small { box-sizing: border-box; padding: 8px; }
   `;
   const css = Object.entries(profiles).map(([name, profile]) => {
     const scope = `${enabled}[data-bc-page="${name}"] body`;
@@ -492,7 +645,7 @@
       ${enabled} body :where(.channel-link,.channel-item,.nav-search-form) { transition: background-color .14s ease, border-color .14s ease; }
     }
     @media (prefers-reduced-motion: reduce) { ${enabled} body :where(.channel-link,.channel-item,.nav-search-form) { transition: none; } }
-  `;
+  ` + watchCSS + watchLayoutCSS;
   async function sampleBackdrop(source) {
     try {
       const image = typeof source === "string" ? new Image() : source;
@@ -514,6 +667,7 @@
   }
   const shadowCSS = `
     :host { ${palette} }
+    :host-context(html[data-bc-enabled="true"][data-bc-page="video"]) { ${watchGraphPalette} }
     :is(#contents, #feed, #commentbox, #editor, #input, .reply-content, .comment-content, .content) {
       color: var(--bc-foreground, var(--bc-text-color)) !important; background-color: transparent !important;
     }
@@ -529,7 +683,19 @@
     :is(input, textarea, [contenteditable="true"]):focus-visible { outline: 2px solid var(--bc-focus); }
     #limit-mask-wall::before { background: linear-gradient(transparent, var(--bc-popup-bg)) !important; }
     #limit-mask-wall::after { background: var(--bc-popup-bg) !important; }
+    :host(bili-comments):host-context(html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"]) :is(.fixed-reply-box,.fixed-replybox,#fixed-reply-box,#fixedbox) {
+      background: var(--bc-glass-fallback-bg) !important;
+    }
+    :host(bili-comment-box):host-context(html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"]) {
+      background: var(--bc-glass-bg-strong) !important; border-radius: var(--bc-glass-radius);
+    }
+    :host-context(html[data-bc-enabled="true"][data-bc-page="video"]) :is(.pubdate,.reply-info,.sub-reply-info) :is(button,a) { color: var(--bc-secondary-color) !important; }
+    /* Current comment header teleports the editor into this wrapper on scroll.
+       Its inner native element uses --bg1, so keep the backing there as well. */
+    :host-context(html[data-bc-enabled="true"][data-bc-page="video"]) .bili-comments-bottom-fixed-wrapper {
+      --bg1: var(--bc-glass-fallback-bg); background: var(--bc-glass-fallback-bg) !important;
+    }
   `;
-  globalThis.BiliThemePage = Object.freeze({ profiles, classify, css, shadowCSS, glassMaterial, navigationCSS, sampleBackdrop,surfaceGroups,homeVideoInfo,homeVideoCover,homeCardLayoutCSS,homeCardSpacingCSS,homeCarouselCSS,
+  globalThis.BiliThemePage = Object.freeze({ profiles, classify, css, shadowCSS, glassMaterial, navigationCSS, sampleBackdrop,surfaceGroups,homeVideoInfo,homeVideoCover,homeCardLayoutCSS,homeCardSpacingCSS,homeCarouselCSS,watchLayoutCSS,
     layoutSelector: Object.values(profiles).map((p) => p.layout).filter(Boolean).join(", ") });
 })();
