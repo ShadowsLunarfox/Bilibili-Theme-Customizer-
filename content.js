@@ -287,9 +287,10 @@
       }
     }
     surfaceCandidates = new Map([...candidates].filter(([node,level]) => {
+      const submenu=level==='strong' && node.matches(pageTheme.submenuSurfaces);
       for (let parent=node.parentElement;parent;parent=parent.parentElement) {
         const ancestorLevel=candidates.get(parent);
-        if (ancestorLevel && (level!=="strong" || ancestorLevel==="strong")) return false;
+        if (ancestorLevel && (level!=="strong" || ancestorLevel==="strong") && !submenu) return false;
       }
       return true;
     }));
@@ -315,7 +316,7 @@
     for(const [node,level] of surfaceCandidates) {
       if(!includeDocument && surfaceScrolls.get(node)!==false && !dirtySurfaceNodes.has(node))continue;
       if(node===bar || node===channel || !node.isConnected || surfaceVisibility.get(node)===false)continue;
-      if(bar?.contains(node) && node.matches('.v-popover-content,.nav-search-panel'))continue;
+      if(bar?.contains(node) && node.matches('.v-popover-content,.vui_popover-content,.nav-search-panel'))continue;
       const geometry=measureGlassTarget(node,level==='content'?400:0);
       if(!geometry)continue;
       surfaceScrolls.set(node,geometry.scrolls);
@@ -387,8 +388,8 @@
     const headerGeometry = measureGlassTarget(bar);
     const panels = [];
     if (headerGeometry) {
-      for (const panel of bar.querySelectorAll(".v-popover-content, .nav-search-panel")) {
-        if (panel.parentElement.closest(".v-popover-content, .nav-search-panel")) continue;
+      for (const panel of bar.querySelectorAll(".v-popover-content, .vui_popover-content, .nav-search-panel")) {
+        if (panel.parentElement.closest(".v-popover-content, .vui_popover-content, .nav-search-panel") && !panel.matches(pageTheme.submenuSurfaces)) continue;
         const geometry = measureGlassTarget(panel);
         if (!geometry) continue;
         let ancestor = panel.parentElement;
@@ -472,14 +473,18 @@
     if (event.target.closest?.(".bili-header__bar")) {scheduleHeaderGlass(false);return;}
     // CSS-only hover/focus transitions need no class/style mutation. Watch the
     // registered popup and its trigger wrapper without polling or mousemove.
+    let changed=false;
     for(const [node,level] of surfaceCandidates) {
       if(level!=="strong")continue;
-      const parent=node.parentElement;
+      const parent=node.matches(pageTheme.submenuSurfaces)
+        ? node.parentElement?.closest('.v-popover-wrap') || node.parentElement
+        : node.parentElement;
       if(node===event.target || node.contains(event.target) ||
           (parent && parent!==document.body && parent!==root && parent.contains(event.target))) {
-        dirtySurfaceNodes.add(node);scheduleHeaderGlass(false);break;
+        dirtySurfaceNodes.add(node);changed=true;
       }
     }
+    if(changed)scheduleHeaderGlass(false);
   }
 
   function startHeaderGlass() {

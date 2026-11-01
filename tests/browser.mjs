@@ -24,6 +24,7 @@ import {watchPageFixture,runWatchPageChecks} from './watch-page.mjs';
 import {watchVariantFixture,runWatchRegressionChecks} from './watch-regression.mjs';
 import {nativeWatchFixture,runNativeWatchChecks} from './watch-native.mjs';
 import {watchAdsFixture,runWatchAdChecks} from './watch-ads.mjs';
+import {subpageMenusFixture,runSubpageMenuChecks} from './subpage-menus.mjs';
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const browserExtraArgs = process.env.BC_TEST_NO_SANDBOX === "1" ? ["--no-sandbox"] : [];
@@ -40,6 +41,7 @@ const watchPageMode = process.env.BC_TEST_WATCH_PAGE;
 const watchVariantMode = process.env.BC_TEST_WATCH_VARIANT;
 const nativeWatchMode = process.env.BC_TEST_NATIVE_WATCH;
 const watchAdsMode = process.env.BC_TEST_WATCH_ADS;
+const subpageMenusMode = process.env.BC_TEST_SUBPAGE_MENUS;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8"));
 const bridge = `
@@ -199,6 +201,8 @@ async function runBrowser(executable) {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(nativeWatchFixture());
       } else if (path === "/watch-ads.html") {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(watchAdsFixture());
+      } else if (path === "/subpage-menus.html") {
+        response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(subpageMenusFixture());
       } else if (path === "/blank.html") {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end('<!doctype html><html><body></body></html>');
       } else if (path === "/filtered-layout.html") {
@@ -262,6 +266,7 @@ async function runBrowser(executable) {
     if(watchVariantMode){await runWatchRegressionChecks({cdp,base,until,screenshots:screenshotDirectory,baseline:watchVariantMode==='before'});return;}
     if(nativeWatchMode){await runNativeWatchChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(watchAdsMode){await runWatchAdChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
+    if(subpageMenusMode){await runSubpageMenuChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(filteredLayoutMode){
       await runFilteredLayoutChecks({cdp,base,until,screenshots:screenshotDirectory});
       await runNestedLayoutChecks({cdp,base,until,screenshots:screenshotDirectory});return;
@@ -424,6 +429,7 @@ async function runBrowser(executable) {
     await runWatchRegressionChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runNativeWatchChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runWatchAdChecks({cdp,base,until,screenshots:screenshotDirectory});
+    await runSubpageMenuChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runMinimalistChecks({ cdp, base, until, screenshots: screenshotDirectory, mp4: recordedMP4 });
     await runReferenceChecks({ cdp, base, until, screenshots: screenshotDirectory });
     await runCompatibilityMatrix({ cdp, base, until, mp4: recordedMP4,

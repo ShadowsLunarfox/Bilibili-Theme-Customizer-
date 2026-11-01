@@ -82,7 +82,7 @@
     .bili-popup:not(:has(.bili-popup__content)), .bili-popover:not(:has(.bili-popover__content)),
     .bili-header__popover:not(:has(.bili-header__popover-content)), .bili-tooltip, .bili-toast,
     .nav-search-panel, .search-panel, .search-suggest,
-    .search-popover, .v-popover-content, .user-card-m-exp, .van-dialog, .van-popover,
+    .search-popover, .v-popover-content, .vui_popover-content, .user-card-m-exp, .van-dialog, .van-popover,
     .van-popup, .bui-dropdown-items, .bili-mini-content-wp, .ant-modal-content,
     .ant-popover-inner, .ant-dropdown-menu, .el-dialog, .el-popover, .el-dropdown-menu`;
   const comments = `.comment-container:not(:has(bili-comments)), #commentapp:not(:has(bili-comments)),
@@ -117,6 +117,9 @@
     box-shadow: inset 0 0 0 1px var(--bc-glass-border), var(--bc-glass-shadow${level==='light'?'':'-'+level});`;
   const glassMaterial=material('light');
   const floating = popovers;
+  // Native flyouts have their own positioned wrapper. They can extend beyond
+  // a parent menu and need an independent backing, unlike its in-flow body.
+  const submenuSurfaces = '.v-popover .v-popover-content, .v-popover-content.sub-links-item, .vui_popover-content';
   const navigation='.bili-header__bar, .bili-header__channel, .header-channel, .search-header, .search-sticky-header, .search-tabs, .space-navbar, .bili-dyn-list-tabs';
   const tools='.fixed-tool-panel, .float-nav';
   const toolbarButtons=`.palette-button-wrap > button, .palette-button-wrap .watchlater-pip-button-inner,
@@ -491,7 +494,26 @@
     ${enabled} body :is(${toolbarButtons}):is(:hover,:focus-visible) {
       border-color: var(--bc-glass-border-hover); box-shadow: inset 0 0 0 1px var(--bc-glass-border-hover), var(--bc-glass-shadow);
     }
-    ${enabled}[data-bc-material] body :where(${floating}) { ${palette} ${material('strong')} color: var(--bc-foreground, var(--bc-text-color)); }
+    ${enabled}[data-bc-material] body :where(${floating}) {
+      ${palette} ${watchGraphPalette} ${material('strong')}
+      --v_bg1_float: var(--bc-glass-bg-strong); --v_bg2: var(--bc-control-bg); --v_bg3: var(--bc-hover-bg);
+      --v_text1: var(--bc-foreground); --v_text2: var(--bc-secondary-color); --v_text3: var(--bc-secondary-color);
+      --v_line_regular: var(--bc-glass-border);
+      color: var(--bc-foreground, var(--bc-text-color));
+    }
+    ${enabled} body .v-popover-content > .avatar-panel-popover { background: transparent !important; }
+    /* Profile menus can reapply a local native palette. Paint their actionable
+       rows directly instead of relying on inherited graph colors. */
+    ${enabled} body .avatar-panel-popover :is(.single-link-item,.logout-item),
+    ${enabled} body .sub-links-item .single-link-item { color: var(--bc-foreground) !important; }
+    ${enabled} body .avatar-panel-popover :is(.single-link-item,.logout-item):is(:hover,:focus-visible),
+    ${enabled} body .sub-links-item .single-link-item:is(:hover,:focus-visible) { background: var(--bc-control-bg) !important; }
+    ${enabled} body :is(.v-popover-content,.vui_popover-content).sub-links-item {
+      background: var(--bc-glass-bg-strong) !important; color: var(--bc-foreground) !important;
+      border-color: var(--bc-glass-border); box-shadow: inset 0 0 0 1px var(--bc-glass-border), var(--bc-glass-shadow-strong);
+    }
+    ${enabled} body :where(${floating}) :is(.vip-entry-containter,.vip-entry-container) { background: var(--bc-control-bg) !important; }
+    ${enabled} body :where(${floating}) :is(.vip-entry-desc-subtitle,.avatar-panel-popover .level-item__text) { color: var(--bc-secondary-color) !important; }
     ${enabled} body :where(${floating}) :where(input,textarea) {
       color: var(--bc-foreground, var(--bc-text-color)); background: var(--bc-input-bg); border-color: var(--bc-glass-border-hover);
       box-shadow: inset 0 0 0 1px var(--bc-glass-border); text-shadow: var(--bc-text-shadow);
@@ -545,7 +567,7 @@
     /* Header popovers use independent external material, including fallback.
        Search inside a floating header and nested popup bodies never blur twice. */
     ${enabled}[data-bc-material] body :where(${allContent},${navigation},${floating}) :where(${allContent}),
-    ${enabled}[data-bc-material] body :where(${floating}) :where(${floating}) {
+    ${enabled}[data-bc-material] body :where(${floating}) :where(${floating}):not(:where(${submenuSurfaces})) {
       background: transparent !important; box-shadow: none;
     }
     ${enabled} body :where(${textInputs}):not(:where(${players}, :is(${players}) *)) {
@@ -710,6 +732,6 @@
       --bg1: var(--bc-glass-fallback-bg); background: var(--bc-glass-fallback-bg) !important;
     }
   `;
-  globalThis.BiliThemePage = Object.freeze({ profiles, classify, css, shadowCSS, glassMaterial, navigationCSS, sampleBackdrop,surfaceGroups,homeVideoInfo,homeVideoCover,homeCardLayoutCSS,homeCardSpacingCSS,homeCarouselCSS,watchLayoutCSS,
+  globalThis.BiliThemePage = Object.freeze({ profiles, classify, css, shadowCSS, glassMaterial, navigationCSS, sampleBackdrop,surfaceGroups,submenuSurfaces,homeVideoInfo,homeVideoCover,homeCardLayoutCSS,homeCardSpacingCSS,homeCarouselCSS,watchLayoutCSS,
     layoutSelector: Object.values(profiles).map((p) => p.layout).filter(Boolean).join(", ") });
 })();
