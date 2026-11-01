@@ -21,8 +21,9 @@
     video: {
       layout: ".video-container-v1, .video-container, #bilibili-player, .video-info-container",
       canvas: ".video-container-v1, .video-container, .left-container, .right-container, .video-page-container",
-      surfaces: `.video-info-container, .video-toolbar, .video-toolbar-container, .up-panel-container, .up-info-container, .video-pod,
-        .base-video-sections-v1, .danmaku-box, .right-container .bui-collapse-wrap, .right-container .bpx-player-dm-wrap, .right-container .next-play,
+      surfaces: `.video-info-container, .video-toolbar, .video-toolbar-container, .up-panel-container, .up-info-container:not(:where(.up-panel-container *)), .video-pod,
+        .base-video-sections-v1, .danmaku-box, .right-container .bui-collapse-wrap, .right-container .bpx-player-dm-wrap,
+        .right-container .next-play:not(:has(.video-page-card-small)), .right-container :is(.recommend-list-v1,.recommend-list-pr) .rec-title,
         .video-page-card-small, .video-page-operator-card, .video-desc-container, #v_desc,
         .video-desc, .video-desc-v1, .video-desc-v2, .video-tag-container`,
       inner: ".desc-content, .desc-info, .video-info-detail, .video-info-title"
@@ -329,6 +330,7 @@
     ${watch} :is(.bpx-docker,.bpx-player-container,#danmukuBox) { ${watchPlayerPalette} }
     ${watch} .bpx-docker-minor {
       ${watchPlayerPalette} background: var(--bc-glass-bg-strong) !important; color: var(--bc-foreground);
+      border-radius: var(--bc-glass-radius); box-shadow: inset 0 0 0 1px var(--bc-glass-border);
     }
     /* One continuous backing for the dock; nested native/profile surfaces
        otherwise compound their tints into an almost opaque black slab. */
@@ -337,6 +339,7 @@
     ${watch} .bpx-docker-minor :is(.bpx-player-dm-wrap,.bui-collapse-wrap,.bui-collapse-header,.bui-collapse-body) {
       background: transparent !important; box-shadow: none !important;
     }
+    ${watch} .bpx-docker-minor .bpx-player-dm-btn-history { border-radius: 0 0 var(--bc-glass-radius) var(--bc-glass-radius); }
     ${watch} .bpx-player-sending-area::before { background: var(--bc-glass-border) !important; }
     ${watch} .bpx-player-dm-input::placeholder { color: var(--bc-placeholder-color) !important; opacity: 1; }
     ${watch} :where(${watchComments}) {
@@ -426,6 +429,17 @@
     }
     html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body .video-info-container { padding-inline: 20px; }
     html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body .video-page-card-small { box-sizing: border-box; padding: 8px; }
+    /* UpInfo is normally inside UpPanel; only standalone variants need their
+       own padding. Separate the creator from the next native sidebar module. */
+    html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body .up-info-container:not(:where(.up-panel-container *)) { box-sizing: border-box; height: auto; padding: 16px; }
+    html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body :is(.up-panel-container,.up-info-container:not(:where(.up-panel-container *))) { margin-bottom: 12px; }
+    /* The native dock's bottom margin and the next section's top margin add
+       across the above-modules wrapper. Let the next section own the gap. */
+    html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body .right-container .danmaku-box { margin-bottom: 0; }
+    html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body .right-container :is(.video-pod,.base-video-sections-v1,.recommend-list-v1,.recommend-list-pr) { margin-top: 12px; }
+    /* Native next-play wraps its heading, first card and divider. Frost only
+       the heading so that card has the same shell and inset as its siblings. */
+    html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body .right-container :is(.recommend-list-v1,.recommend-list-pr) .rec-title { box-sizing: border-box; padding: 10px 12px; }
   `;
   const css = Object.entries(profiles).map(([name, profile]) => {
     const scope = `${enabled}[data-bc-page="${name}"] body`;

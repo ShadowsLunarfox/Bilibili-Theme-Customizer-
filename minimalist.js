@@ -4,6 +4,9 @@
   const BC=globalThis.BiliTheme;
   const scope='html[data-bc-minimalist="true"][data-bc-page="home"]';
   const option=key=>`${scope}[data-bc-min-options~="${key}"]`;
+  // Watch-page filtering also works with the theme alone. This stylesheet and
+  // the page/options attributes exist only while the extension is active.
+  const watchAds='html[data-bc-page="video"][data-bc-min-options~="ads"]';
   const feed=':is(.recommended-container_floor-aside,.feed2)';
   const adMarkers=':is(.bili-video-card__info--ad,.bili-video-card__info--creative-ad,.bili-video-card__info--ad-label)';
   const adCard=`:is(.feed-card,.bili-feed-card,.bili-video-card,.bili-live-card,.floor-single-card):is(.is-ad,[data-is-ad="true"],[data-ad-id]:not([data-ad-id=""])),
@@ -24,6 +27,12 @@
     ${option('ads')} ${feed} :is(${adSlots}),
     ${option('ads')} ${feed} > :is(.bili-feed-ad,.ad-floor-exp),
     ${option('ads')} ${feed} > .container > :is(.bili-feed-ad,.ad-floor-exp) { display: none !important; }
+    /* Native promotion/ad slots, rather than ordinary recommendations. Hide
+       the complete slot so its margin and children leave no empty row. */
+    ${watchAds} body .right-container :is(.video-page-special-card-small,.video-page-game-card-small,
+      .video-card-ad-small,#slide_ad,.slide-ad-exp,.right-bottom-banner,.ad-floor-exp),
+    ${watchAds} body .right-container .video-page-card-small:is(.is-ad,[data-is-ad="true"],[data-ad-id]:not([data-ad-id=""])),
+    ${watchAds} body .right-container .video-page-card-small:has(.ad-report) { display: none !important; }
     /* Keep the site's banner footprint: its absolute header still needs that
        native space even when the banner artwork is explicitly hidden. */
     ${option('banner')} .bili-header > .bili-header__banner { visibility: hidden !important; }
