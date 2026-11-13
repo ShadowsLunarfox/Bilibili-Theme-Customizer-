@@ -5,12 +5,25 @@ import {join} from 'node:path';
 import {settle} from './layout-parity.mjs';
 
 const nativeCSS=readFileSync(new URL('./fixtures/watch-native.css',import.meta.url),'utf8');
+const editorCSS=readFileSync(new URL('./fixtures/comment-editor.css',import.meta.url),'utf8');
+const richEditor=`<style>${editorCSS}</style><div id="input"><div class="brt-root"><div class="brt-placeholder">A readable floating comment editor</div><div class="brt-editor" contenteditable="true"><br></div></div></div>`;
+const commentBox=`<style>
+  :host{display:flex}#user-avatar{flex-shrink:0;width:80px;height:50px;display:flex;justify-content:center;align-items:center}
+  #user-avatar img{width:48px;height:48px;border-radius:50%}#comment-area{position:relative;width:calc(100% - 80px)}#body{width:100%}
+  #editor{width:100%;padding:8px 0;border:1px solid var(--line_regular);box-sizing:border-box;border-radius:6px;background:var(--bg3)}
+  #editor:hover,#editor.active{background:var(--bg1);border-color:var(--graph_weak)}
+  </style><div id="user-avatar"><img alt="Native avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Crect width='48' height='48' fill='%23bf9e79'/%3E%3C/svg%3E"></div>
+  <div id="comment-area"><div id="body"><div id="editor"><bili-comment-rich-textarea></bili-comment-rich-textarea></div></div></div>`;
+const commentHeader=`<style>
+  #navbar{display:flex;align-items:center;height:28px;margin-bottom:22px;color:var(--text1)}#title{display:flex;align-items:center}
+  #title h2{margin:0;font-size:20px;font-weight:500}#count{margin:0 30px 0 6px;font-size:13px;color:var(--text3)}
+  </style><div id="navbar"><div id="title"><h2>评论</h2><span id="count">1497</span></div><div>最热 · 最新</div></div><bili-comment-box></bili-comment-box>`;
 
 const recommendation=(index)=>`<div class="video-page-card-small"><div class="card-box"><div class="pic-box"><div class="pic loaded" style="background:linear-gradient(135deg,#467a80,#a87158)"></div></div><div class="info"><a class="title" href="#recommendation-${index}">Readable recommendation ${index}: native sidebar spacing</a><div class="upname">Native creator</div><div class="playinfo">29.5万 · 3156</div></div></div></div>`;
 
 export function nativeWatchFixture(){
   return `<!doctype html><html><meta charset="utf-8"><style>
-    :root{--bg1:#fff;--bg3:#f1f2f3;--graph_bg_regular:#f1f2f3;--graph_bg_thick:#e3e5e7;--text1:#18191c;--text2:#61666d;--text3:#9499a0;--graph_icon:#61666d;--brand_blue:#00aeec}
+    :root{--bg1:#fff;--bg3:#f1f2f3;--graph_bg_regular:#f1f2f3;--graph_bg_thick:#e3e5e7;--text1:#18191c;--text2:#61666d;--text3:#9499a0;--graph_icon:#61666d;--brand_blue:#00aeec;--line_regular:#e3e5e7}
     body{margin:0;font:15px/1.6 Arial;background:linear-gradient(120deg,#fff,#e5d2b0 45%,#123d3c)}
     .video-container-v1{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;margin:80px 5%}
     .video-info-container{height:80px}.video-info-container h1{font-size:18px;margin:0}
@@ -28,6 +41,7 @@ export function nativeWatchFixture(){
       <div class="bpx-player-video-wrap">Native video area</div><div class="bpx-player-control-wrap">▶ 00:26 / 27:00</div>
       <div class="bpx-player-sending-area"><div class="bpx-player-sending-bar"><span class="bpx-player-video-info">268人正在看</span><div class="bpx-player-video-inputbar"><div class="bpx-player-video-inputbar-wrap"><input class="bpx-player-dm-input" placeholder="发个友善的弹幕见证当下"></div><button id="send">发送</button></div></div></div>
     </div></div></div></div>
+    <div class="video-tag-container"><div class="tag-panel"><div class="tag"><a class="tag-link" href="#tag">Windows 11</a></div><div class="tag"><div class="popover-reference"><a class="tag-link" href="#topic">Tiny 11</a></div></div></div></div>
     <div id="comment"><bili-comments></bili-comments></div>
   </div><aside class="right-container">
     <div class="up-panel-container"><div class="up-info-container" data-v-70067303><div class="up-info--left" data-v-70067303></div><div class="up-info--right" data-v-70067303><p>教日语的木子学姐</p><div class="upinfo-btn-panel"><button class="follow-btn following" data-v-f1b16cb6>已关注</button></div></div></div></div>
@@ -40,9 +54,9 @@ export function nativeWatchFixture(){
   <script>
     // Comment elements and CSS contracts from bili-comments bee9afe43a,
     // built 2026-10-22. The real root has no display:block declaration.
-    customElements.define('bili-comment-rich-textarea',class extends HTMLElement{connectedCallback(){if(this.shadowRoot)return;this.attachShadow({mode:'open'}).innerHTML='<style>:host{display:block}#input{color:var(--text1);background:var(--bili-comment-textarea-bg,transparent)}</style><div id="input" contenteditable="true">A readable floating comment editor</div>';}});
-    customElements.define('bili-comment-box',class extends HTMLElement{connectedCallback(){if(this.shadowRoot)return;this.attachShadow({mode:'open'}).innerHTML='<style>:host{display:block}#editor{background:var(--graph_bg_thin);border:1px solid var(--line_regular);border-radius:6px;padding:12px}</style><div id="editor"><bili-comment-rich-textarea></bili-comment-rich-textarea></div>';}});
-    customElements.define('bili-comments-header-renderer',class extends HTMLElement{connectedCallback(){if(this.shadowRoot)return;this.attachShadow({mode:'open'}).innerHTML='<style>#navbar{display:flex;height:28px;margin-bottom:22px;color:var(--text1)}#count{color:var(--text3)}</style><div id="navbar">评论 <span id="count">1497 · 最热 · 最新</span></div><bili-comment-box></bili-comment-box>';}});
+    customElements.define('bili-comment-rich-textarea',class extends HTMLElement{connectedCallback(){if(this.shadowRoot)return;this.attachShadow({mode:'open'}).innerHTML=${JSON.stringify(richEditor)};const editor=this.shadowRoot.querySelector('.brt-editor'),placeholder=this.shadowRoot.querySelector('.brt-placeholder');editor.addEventListener('input',()=>{placeholder.hidden=!!editor.textContent;});}});
+    customElements.define('bili-comment-box',class extends HTMLElement{connectedCallback(){if(this.shadowRoot)return;this.attachShadow({mode:'open'}).innerHTML=${JSON.stringify(commentBox)};}});
+    customElements.define('bili-comments-header-renderer',class extends HTMLElement{connectedCallback(){if(this.shadowRoot)return;this.attachShadow({mode:'open'}).innerHTML=${JSON.stringify(commentHeader)};}});
     customElements.define('bili-comment-replies-renderer',class extends HTMLElement{connectedCallback(){if(this.shadowRoot)return;this.attachShadow({mode:'open'}).innerHTML='<style>:host{display:block}#contents{padding:16px 0;color:var(--text1)}.reply-info{color:var(--text3)}</style><div id="contents">看大众生活水平，要看中位数收入。<div class="reply-info">19小时前 · 赞 46 · 回复</div></div>';}});
     customElements.define('bili-comments',class extends HTMLElement{connectedCallback(){if(this.shadowRoot)return;this.attachShadow({mode:'open'}).innerHTML='<style>:host{-webkit-font-smoothing:antialiased}#contents{padding-top:14px;position:relative}</style><bili-comments-header-renderer></bili-comments-header-renderer><div id="contents">'+Array.from({length:14},()=>'<bili-comment-replies-renderer></bili-comment-replies-renderer>').join('')+'</div>';}});
     document.querySelector('.bui-collapse-header').onclick=()=>{const n=document.querySelector('.bui-collapse-body');n.hidden=!n.hidden;};
@@ -72,9 +86,23 @@ export async function runNativeWatchChecks({cdp,base,until,screenshots}){
     const read=n=>{const s=getComputedStyle(n),r=n.getBoundingClientRect();return {color:s.color,bg:s.backgroundColor,filter:s.backdropFilter,display:s.display,width:r.width,height:r.height,radius:s.borderRadius};};
     const selectors=['.bpx-docker-minor','.bui-collapse-header','.bpx-player-dm-wrap','.dm-info-dm','.dm-info-time','.bpx-player-dm-btn-history','.bpx-player-video-inputbar','.bpx-player-dm-input','.follow-btn','.subscribe-btn','.bpx-player-video-wrap','.bpx-player-control-wrap','bili-comments','.up-panel-container','.up-info-container','.next-play','.rec-title','.next-play .video-page-card-small','.rec-list .video-page-card-small','.pic-box'];
     const root=document.querySelector('bili-comments').shadowRoot,header=root.querySelector('bili-comments-header-renderer').shadowRoot;
-    return {nodes:Object.fromEntries(selectors.map(s=>[s,read(document.querySelector(s))])),header:read(header.querySelector('#navbar')),count:read(header.querySelector('#count')),reply:read(root.querySelector('bili-comment-replies-renderer').shadowRoot.querySelector('#contents')),fixed:header.querySelector('.bili-comments-bottom-fixed-wrapper')&&read(header.querySelector('.bili-comments-bottom-fixed-wrapper')),fixedInner:header.querySelector('.bili-comments-bottom-fixed-wrapper')&&read(header.querySelector('.bili-comments-bottom-fixed-wrapper > div'))};
+    return {nodes:Object.fromEntries(selectors.map(s=>[s,read(document.querySelector(s))])),comments:read(root.querySelector('#contents')),header:read(header.querySelector('#navbar')),count:read(header.querySelector('#count')),reply:read(root.querySelector('bili-comment-replies-renderer').shadowRoot.querySelector('#contents')),fixed:header.querySelector('.bili-comments-bottom-fixed-wrapper')&&read(header.querySelector('.bili-comments-bottom-fixed-wrapper')),fixedInner:header.querySelector('.bili-comments-bottom-fixed-wrapper')&&read(header.querySelector('.bili-comments-bottom-fixed-wrapper > div'))};
   })()`);
   const native=await snapshot();assert.equal(native.nodes['bili-comments'].display,'inline');
+  const editorState=()=>page.evaluate(`(()=>{
+    const root=document.querySelector('bili-comments').shadowRoot.querySelector('bili-comments-header-renderer').shadowRoot;
+    const box=root.querySelector('bili-comment-box'),shell=box.shadowRoot.querySelector('#editor');
+    const rich=shell.querySelector('bili-comment-rich-textarea').shadowRoot;
+    const backing=root.host.parentElement?.id==='header'?root.host.parentElement:root.host;
+    const h=backing.getBoundingClientRect(),nav=root.querySelector('#navbar').getBoundingClientRect(),title=root.querySelector('#title').getBoundingClientRect();
+    const field=shell.getBoundingClientRect(),avatar=box.shadowRoot.querySelector('#user-avatar img').getBoundingClientRect();
+    const read=n=>{const s=getComputedStyle(n),r=n.getBoundingClientRect();return {background:s.backgroundColor,shadow:s.boxShadow,border:s.borderColor,outline:s.outlineStyle,radius:s.borderRadius,width:r.width,height:r.height};};
+    return {shell:read(shell),wrapper:read(rich.querySelector('#input')),input:read(rich.querySelector('.brt-editor')),
+      placeholder:read(rich.querySelector('.brt-placeholder')),position:getComputedStyle(rich.querySelector('.brt-placeholder')).position,
+      hidden:rich.querySelector('.brt-placeholder').hidden,focused:rich.activeElement===rich.querySelector('.brt-editor'),
+      gutters:{titleLeft:title.left-h.left,top:nav.top-h.top,right:h.right-field.right,bottom:h.bottom-field.bottom,avatarLeft:avatar.left-h.left}};
+  })()`);
+  const nativeEditor=await editorState();
   assert.ok(await page.evaluate('document.querySelector("bili-comments").getClientRects().length > 1'),'native host paints disconnected inline fragments around its block children');
   const wallpaper=async color=>{
     const image=await page.evaluate(`(()=>{const c=document.createElement('canvas');c.width=240;c.height=160;const x=c.getContext('2d');x.fillStyle=${JSON.stringify(color)};x.fillRect(0,0,240,160);return c.toDataURL();})()`);
@@ -85,6 +113,59 @@ export async function runNativeWatchChecks({cdp,base,until,screenshots}){
   await until(page,'Number(document.documentElement.style.getPropertyValue("--bc-glass-bg-content").match(/[\\d.]+/g)[3]) > .6');
   await until(page,'!!document.querySelector("bili-comments").shadowRoot.querySelector("bili-comments-header-renderer").shadowRoot.querySelector("style[data-bc-owned]")');
   const dark=await snapshot();
+  const themedEditor=await editorState();
+  assert.deepEqual(themedEditor.gutters,{titleLeft:16,top:16,right:16,bottom:16,avatarLeft:nativeEditor.gutters.avatarLeft},'heading/editor clear the rounded corners while native avatars remain aligned');
+  // The official component wraps its renderer in #header; some variants mount
+  // it directly. Both must have one gutter rather than two nested insets.
+  await page.evaluate(`(()=>{const root=document.querySelector('bili-comments').shadowRoot,renderer=root.querySelector('bili-comments-header-renderer'),header=document.createElement('div');header.id='header';renderer.before(header);header.append(renderer);})()`);
+  for(const width of [1024,1440,1920,2560]){
+    await page.resize(width,1100);await settle(page);await settle(page);
+    assert.deepEqual((await editorState()).gutters,themedEditor.gutters,width+' wrapped header has the same insets without shifting avatars');
+  }
+  await page.resize(1652,1100);await settle(page);await screenshot('native-watch-comment-corners');
+  await page.evaluate(`(()=>{const root=document.querySelector('bili-comments').shadowRoot,header=root.querySelector('#header');header.before(header.querySelector('bili-comments-header-renderer'));header.remove();})()`);await settle(page);
+  for(const key of ['wrapper','input']){
+    assert.equal(themedEditor[key].background,'rgba(0, 0, 0, 0)',key+' adds no second field tint');
+    assert.equal(themedEditor[key].shadow,'none',key+' adds no second field rim');
+    assert.equal(themedEditor[key].width,nativeEditor[key].width-16,key+' accommodates the requested right gutter');
+    assert.equal(themedEditor[key].height,nativeEditor[key].height,key+' retains native height');
+  }
+  assert.notEqual(themedEditor.shell.background,'rgba(0, 0, 0, 0)','one tinted editor shell');
+  assert.equal(themedEditor.position,'absolute','native placeholder stays over the empty field');
+  assert.equal(themedEditor.hidden,false);
+  const clickPoint=await page.evaluate(`(()=>{const root=document.querySelector('bili-comments').shadowRoot.querySelector('bili-comments-header-renderer').shadowRoot;
+    const r=root.querySelector('bili-comment-box').shadowRoot.querySelector('bili-comment-rich-textarea').shadowRoot.querySelector('.brt-editor').getBoundingClientRect();return {x:r.left+20,y:r.top+r.height/2};})()`);
+  await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...clickPoint},page.sessionId);
+  await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...clickPoint},page.sessionId);
+  await settle(page);
+  const checkFocus=async label=>{
+    const focused=await editorState();
+    assert.equal(focused.focused,true,label+' focuses the real nested editor');
+    assert.equal(focused.input.outline,'none',label+' has no square inner focus outline');
+    assert.equal(focused.wrapper.outline,'none',label+' has no wrapper outline');
+    assert.match(focused.shell.shadow,/0px 0px 0px 2px/,label+' shows one focus ring on the outer shell');
+    assert.notEqual(focused.shell.radius,'0px',label+' focus ring follows the rounded shell');
+    for(const key of ['shell','wrapper','input']){
+      assert.equal(focused[key].width,themedEditor[key].width,label+' keeps '+key+' width');
+      assert.equal(focused[key].height,themedEditor[key].height,label+' keeps '+key+' height');
+    }
+  };
+  await checkFocus('Mouse click');await screenshot('native-watch-editor-mouse-focus');
+  await page.evaluate('[...document.querySelectorAll(".tag-link")].at(-1).focus()');
+  await cdp.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9},page.sessionId);
+  await cdp.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9},page.sessionId);
+  await settle(page);await checkFocus('Keyboard Tab');await screenshot('native-watch-editor-keyboard-focus');
+  await page.evaluate('document.querySelector(".bpx-player-dm-input").focus()');
+  assert.equal((await editorState()).shell.shadow,themedEditor.shell.shadow,'blurring restores the normal field border');
+  assert.equal(dark.nodes['bili-comments'].bg,'rgba(0, 0, 0, 0)','outer comments host does not compound list tint');
+  assert.notEqual(dark.comments.bg,'rgba(0, 0, 0, 0)','actual block list owns the readable backing');
+  const headerBacking=await page.evaluate('(()=>{const n=document.querySelector("bili-comments").shadowRoot.querySelector("bili-comments-header-renderer"),r=n.getBoundingClientRect();return {height:r.height,bg:getComputedStyle(n).backgroundColor};})()');
+  assert.ok(headerBacking.height>=themedEditor.shell.height,'header backing contains its block editor');
+  assert.notEqual(headerBacking.bg,'rgba(0, 0, 0, 0)','header keeps its own readable backing');
+  assert.equal(await page.evaluate('getComputedStyle(document.querySelector(".tag")).backgroundColor'),'rgba(0, 0, 0, 0)','floated tag wrapper stays clear');
+  await until(page,'getComputedStyle(document.querySelector(".tag-link")).borderRadius === "8px"');
+  assert.equal(await page.evaluate('getComputedStyle(document.querySelector(".tag-link")).borderRadius'),'8px','actual tag link has a rounded surface');
+  assert.notEqual(await page.evaluate('getComputedStyle(document.querySelector(".tag-link")).backgroundColor'),'rgba(0, 0, 0, 0)','nested tag link owns its tint');
   assert.equal(dark.nodes['.up-info-container'].bg,'rgba(0, 0, 0, 0)','nested creator info shares one panel');
   assert.equal(dark.nodes['.next-play'].bg,'rgba(0, 0, 0, 0)','next-play is a section rather than a second card');
   assert.equal(dark.nodes['.next-play .video-page-card-small'].bg,dark.nodes['.rec-list .video-page-card-small'].bg,'first recommendation shares the other cards tint');
@@ -93,7 +174,7 @@ export async function runNativeWatchChecks({cdp,base,until,screenshots}){
   assert.equal(dark.nodes['.bpx-docker-minor'].radius,'16px');
   assert.equal(dark.nodes['.pic-box'].width,native.nodes['.pic-box'].width);assert.equal(dark.nodes['.pic-box'].height,native.nodes['.pic-box'].height);
   assert.equal(dark.nodes['.bpx-player-dm-wrap'].bg,'rgba(0, 0, 0, 0)','nested dock content shares its backing without stacked dark tints');
-  assert.equal(dark.nodes['bili-comments'].display,'block');assert.ok(dark.nodes['bili-comments'].height>1000,'one host backing covers every reply');
+  assert.equal(dark.nodes['bili-comments'].display,'block');assert.ok(dark.nodes['bili-comments'].height>1000,'block host contains the complete reply list');
   const rgb=s=>s.match(/[\d.]+/g).map(Number);
   const lum=c=>c.slice(0,3).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((v,c,i)=>v+c*[.2126,.7152,.0722][i],0);
   const ratio=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
@@ -101,7 +182,7 @@ export async function runNativeWatchChecks({cdp,base,until,screenshots}){
   for(const [state,wallpaper] of [[dark,[255,255,255]]]){
     const panel=over(state.nodes['.bpx-docker-minor'].bg,wallpaper);
     for(const selector of ['.dm-info-dm','.dm-info-time','.bpx-player-dm-btn-history'])assert.ok(ratio(rgb(state.nodes[selector].color),panel)>=4.5,selector+' contrast on bright wallpaper');
-    const backing=over(state.nodes['bili-comments'].bg,wallpaper);
+    const backing=over(state.comments.bg,wallpaper);
     for(const key of ['header','count','reply'])assert.ok(ratio(rgb(state[key].color),backing)>=4.5,key+' contrast on bright wallpaper');
     assert.ok(ratio(rgb(state.nodes['.bpx-player-dm-input'].color),over(state.nodes['.bpx-player-video-inputbar'].bg,over(await page.evaluate('getComputedStyle(document.querySelector(".bpx-player-sending-bar")).backgroundColor'),wallpaper)))>=4.5);
   }
@@ -125,7 +206,8 @@ export async function runNativeWatchChecks({cdp,base,until,screenshots}){
   await page.evaluate('document.querySelector(".danmaku-wrap").append(document.querySelector(".bpx-docker-minor"));window.scrollTo(0,900);teleportEditor()');await settle(page);await settle(page);
   const fixed=await snapshot();assert.ok(rgb(fixed.fixed.bg)[3]>=.94);assert.equal(fixed.fixedInner.bg,fixed.fixed.bg,'native inline --bg1 backing follows the floating wrapper');
   await screenshot('native-watch-comments');
-  const editor=await page.evaluate(`(()=>{const r=document.querySelector('bili-comments').shadowRoot.querySelector('bili-comments-header-renderer').shadowRoot;const e=r.querySelector('bili-comment-box').shadowRoot.querySelector('bili-comment-rich-textarea').shadowRoot.querySelector('#input');e.focus();return getComputedStyle(e).color;})()`);assert.equal(editor,'rgb(255, 255, 255)');await page.type(' · editable');
+  const editor=await page.evaluate(`(()=>{const r=document.querySelector('bili-comments').shadowRoot.querySelector('bili-comments-header-renderer').shadowRoot;const e=r.querySelector('bili-comment-box').shadowRoot.querySelector('bili-comment-rich-textarea').shadowRoot.querySelector('.brt-editor');e.focus();return getComputedStyle(e).color;})()`);assert.equal(editor,'rgb(255, 255, 255)');await page.type(' · editable');
+  assert.equal((await editorState()).hidden,true,'native placeholder hides when typing');
   for(const width of [1024,1440,1920,2560]){await page.resize(width,1100);await settle(page);assert.ok((await snapshot()).nodes['bili-comments'].height>1000);}
   await wallpaper('#000000');await patch({textColor:'#111111'});await until(page,'Number(document.documentElement.style.getPropertyValue("--bc-glass-bg-content").match(/[\\d.]+/g)[3]) > .5');const light=await snapshot();const lightPanel=over(light.nodes['.bpx-docker-minor'].bg,[0,0,0]);assert.ok(ratio(rgb(light.nodes['.dm-info-dm'].color),lightPanel)>=4.5,'dark ink palette has readable contrast');
   await patch({material:'clear'});assert.equal((await snapshot()).nodes['.bpx-docker-minor'].bg,'rgba(0, 0, 0, 0)');

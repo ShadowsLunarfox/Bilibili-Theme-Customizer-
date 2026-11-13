@@ -32,6 +32,9 @@
 .bpx-player-auxiliary .bpx-player-dm-container .dm-info-row .dm-info-date{-webkit-box-flex:0;-ms-flex:none;flex:none;overflow:hidden;white-space:nowrap;width:88px}
 .bpx-player-auxiliary .bpx-player-dm-btn-history{background-color:#f4f4f4;background-color:var(--bpx-aux-footer-bg,#f4f4f4);border-radius:2px;color:#505050;color:var(--bpx-aux-footer-font,#505050);cursor:pointer;display:none;height:31px;line-height:31px;text-align:center;width:100%}
 /* video.css */
+.video-tag-container .tag-panel .tag-link{color:var(--text2);background:var(--graph_bg_regular);height:28px;line-height:28px;border-radius:14px;font-size:13px;padding:0 12px;box-sizing:border-box;transition:all .3s;display:inline-flex;align-items:center;cursor:pointer}
+.video-tag-container .tag-panel .tag{float:left;margin:0 12px 8px 0}
+.video-tag-container .tag-panel{overflow:hidden}
 
 .upinfo-btn-panel .follow-btn.following[data-v-f1b16cb6] {
   color: var(--text3);

@@ -30,9 +30,10 @@
     /* Native promotion/ad slots, rather than ordinary recommendations. Hide
        the complete slot so its margin and children leave no empty row. */
     ${watchAds} body .right-container :is(.video-page-special-card-small,.video-page-game-card-small,
-      .video-card-ad-small,#slide_ad,.slide-ad-exp,.right-bottom-banner,.ad-floor-exp),
+      .video-card-ad-small,#slide_ad,.slide-ad-exp,.right-bottom-banner,#right-bottom-banner,.ad-floor-exp),
     ${watchAds} body .right-container .video-page-card-small:is(.is-ad,[data-is-ad="true"],[data-ad-id]:not([data-ad-id=""])),
-    ${watchAds} body .right-container .video-page-card-small:has(.ad-report) { display: none !important; }
+    ${watchAds} body .right-container .video-page-card-small:has(.ad-report),
+    ${watchAds} body .left-container :is(.left-banner,#bannerAd,#activity_vote,.activity-m-v1,.promo-banner) { display: none !important; }
     /* Keep the site's banner footprint: its absolute header still needs that
        native space even when the banner artwork is explicitly hidden. */
     ${option('banner')} .bili-header > .bili-header__banner { visibility: hidden !important; }

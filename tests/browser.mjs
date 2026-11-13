@@ -25,6 +25,7 @@ import {watchVariantFixture,runWatchRegressionChecks} from './watch-regression.m
 import {nativeWatchFixture,runNativeWatchChecks} from './watch-native.mjs';
 import {watchAdsFixture,runWatchAdChecks} from './watch-ads.mjs';
 import {subpageMenusFixture,runSubpageMenuChecks} from './subpage-menus.mjs';
+import {runWatchCommentChecks} from './watch-comments.mjs';
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const browserExtraArgs = process.env.BC_TEST_NO_SANDBOX === "1" ? ["--no-sandbox"] : [];
@@ -42,6 +43,7 @@ const watchVariantMode = process.env.BC_TEST_WATCH_VARIANT;
 const nativeWatchMode = process.env.BC_TEST_NATIVE_WATCH;
 const watchAdsMode = process.env.BC_TEST_WATCH_ADS;
 const subpageMenusMode = process.env.BC_TEST_SUBPAGE_MENUS;
+const watchCommentsMode = process.env.BC_TEST_WATCH_COMMENTS;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8"));
 const bridge = `
@@ -265,6 +267,7 @@ async function runBrowser(executable) {
     if(watchPageMode){await runWatchPageChecks({cdp,base,until,screenshots:screenshotDirectory,baseline:watchPageMode==='before'});return;}
     if(watchVariantMode){await runWatchRegressionChecks({cdp,base,until,screenshots:screenshotDirectory,baseline:watchVariantMode==='before'});return;}
     if(nativeWatchMode){await runNativeWatchChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
+    if(watchCommentsMode){await runWatchCommentChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(watchAdsMode){await runWatchAdChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(subpageMenusMode){await runSubpageMenuChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(filteredLayoutMode){
@@ -428,6 +431,7 @@ async function runBrowser(executable) {
     await runWatchPageChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runWatchRegressionChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runNativeWatchChecks({cdp,base,until,screenshots:screenshotDirectory});
+    await runWatchCommentChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runWatchAdChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runSubpageMenuChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runMinimalistChecks({ cdp, base, until, screenshots: screenshotDirectory, mp4: recordedMP4 });

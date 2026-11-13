@@ -143,9 +143,9 @@
   const allContent=[comments,tools,'.bili-video-card__info,.video-card__info',...Object.values(profiles).map(p=>p.surfaces).filter(Boolean)].join(',');
   function surfaceGroups(page) {
     const content=page==='home'?`${homeVideoInfo}, .recommended-swipe .recommended-swipe-body`:profiles[page]?.surfaces;
-    // Watch comments use a native-flow tint, without a full-list blur layer.
-    // This also supports classic light-DOM and inaccessible shadow roots.
-    return {light:`${navigation},${toolbarButtons}`,content:`${page==='video'?'':comments+', '}${tools}${content?', '+content:''}`,strong:popovers};
+    // Watch comments use one viewport-clipped frost behind their native-flow
+    // tint, including classic lists and inaccessible shadow roots.
+    return {light:`${navigation},${toolbarButtons}`,content:`${page==='video'?watchCommentGlass:comments}, ${tools}${content?', '+content:''}`,strong:popovers};
   }
   // Native elements retain every dimension, border width, font metric, layout,
   // overflow rule and breakpoint. Only appearance is changed here.
@@ -283,6 +283,8 @@
   `;
   const watch='html[data-bc-enabled="true"][data-bc-page="video"] body';
   const watchComments=`${comments}, .left-container .reply-wrap, .left-container .reply-list, .left-container .comment-list`;
+  const watchCommentGlass=`:is(${comments}):not(:has(.reply-list,.comment-list)),
+    .left-container :is(.reply-header,.reply-list,.comment-list,.reply-box,.reply-box-wrap)`;
   // NANO injects its theme on html. Override its native auxiliary/sending
   // tokens at the dock instead of relying on individual BUI DOM wrappers.
   // These are separate from the playback/overlay controls' color tokens.
@@ -385,10 +387,13 @@
     }
     ${watch} .video-tag-container :is(.tag,.tag-link,.tag-item) {
       background: var(--bc-control-bg) !important; color: var(--bc-foreground) !important;
+      border-radius: var(--bc-control-radius);
       border-color: var(--bc-glass-border); box-shadow: inset 0 0 0 1px var(--bc-glass-border);
     }
     ${watch} .video-tag-container :is(.tag,.tag-link,.tag-item):hover { background: var(--bc-hover-bg) !important; }
-    ${watch} .video-tag-container :is(.tag,.tag-link,.tag-item) :is(.tag,.tag-link,.tag-item) {
+    /* Native .tag is a floated wrapper around the rounded .tag-link. Paint
+       the link, not the square wrapper, including nested topic/popover tags. */
+    ${watch} .video-tag-container :is(.tag,.tag-item):has(.tag-link,.tag-item,.tag) {
       background: transparent !important; border-color: transparent; box-shadow: none;
     }
     ${watch} :is(.video-pod,.base-video-sections-v1) a:not(:where(.active,.on,[aria-current="true"],[aria-current="page"],.active *,.on *)) { color: var(--bc-foreground) !important; }
@@ -432,6 +437,11 @@
     }
     html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body .video-info-container { padding-inline: 20px; }
     html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body .video-page-card-small { box-sizing: border-box; padding: 8px; }
+    /* Let adjacent block margins collapse to one gap, including older watch
+       pages that group the description/tags below the player in a wrapper. */
+    html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body :is(.left-container,.left-container-under-player) > :is(.video-toolbar,.video-toolbar-container,.video-desc-container,.video-tag-container,#v_desc,#v_tag) { margin-block: 12px; }
+    html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body :is(.left-container,.left-container-under-player) > :is(#comment,#commentapp,.comment-container) { margin-top: 12px; }
+    html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body :is(#comment,#commentapp,.comment-container) > bili-comments { margin-top: 0; }
     /* UpInfo is normally inside UpPanel; only standalone variants need their
        own padding. Separate the creator from the next native sidebar module. */
     html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body .up-info-container:not(:where(.up-panel-container *)) { box-sizing: border-box; height: auto; padding: 16px; }
@@ -552,7 +562,7 @@
         --bc-video-info-bg: var(--bc-glass-fallback-bg) !important;
         --bc-video-info-filter: none !important;
       }
-      ${enabled} :where(#bc-theme-header-glass,#bc-theme-channel-glass,.bc-theme-popover-glass,.bc-theme-surface-glass) { backdrop-filter: none; -webkit-backdrop-filter: none; }
+      ${enabled} :where(#bc-theme-header-glass,#bc-theme-channel-glass,.bc-theme-popover-glass,.bc-theme-surface-glass) { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
     }
     @media (prefers-reduced-transparency: reduce) {
       ${enabled} {
@@ -562,7 +572,7 @@
         --bc-video-info-bg: var(--bc-glass-fallback-bg) !important;
         --bc-video-info-filter: none !important;
       }
-      ${enabled} :where(#bc-theme-header-glass,#bc-theme-channel-glass,.bc-theme-popover-glass,.bc-theme-surface-glass) { backdrop-filter: none; -webkit-backdrop-filter: none; }
+      ${enabled} :where(#bc-theme-header-glass,#bc-theme-channel-glass,.bc-theme-popover-glass,.bc-theme-surface-glass) { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
     }
     /* Header popovers use independent external material, including fallback.
        Search inside a floating header and nested popup bodies never blur twice. */
@@ -708,6 +718,29 @@
       color: var(--bc-foreground, var(--bc-text-color)) !important; background-color: transparent !important;
     }
     :is(#comment-text, .rich-text, .text, .user-name) { color: var(--bc-foreground, var(--bc-text-color)) !important; text-shadow: var(--bc-text-shadow); }
+    /* Paint the real block list, not inline/virtualized thread hosts. Keep the
+       outer host clear so the list and header each receive exactly one tint. */
+    :host(bili-comments):host-context(html[data-bc-enabled="true"][data-bc-page="video"]) {
+      background: transparent !important; box-shadow: none !important;
+    }
+    :host(bili-comments):host-context(html[data-bc-enabled="true"][data-bc-page="video"]) :is(#contents,#header),
+    :host(bili-comments):host-context(html[data-bc-enabled="true"][data-bc-page="video"]) > bili-comments-header-renderer {
+      background: var(--bc-glass-bg-strong) !important;
+      border-radius: var(--bc-glass-radius);
+      box-shadow: inset 0 0 0 1px var(--bc-glass-border);
+    }
+    :host(bili-comments):host-context(html[data-bc-enabled="true"][data-bc-page="video"]) > bili-comments-header-renderer { display: block; }
+    /* The native avatar column already supplies its left gutter. Inset the
+       heading separately so the editor and reply avatars retain alignment. */
+    :host(bili-comments):host-context(html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"]) #header,
+    :host(bili-comments):host-context(html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"]) > bili-comments-header-renderer {
+      box-sizing: border-box; padding: 16px;
+    }
+    :host(bili-comments):host-context(html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"]) #header:has(> bili-comments-header-renderer),
+    :host(bili-comments):host-context(html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"]) > bili-comments-header-renderer { padding-left: 0; }
+    :host(bili-comments-header-renderer):host-context(html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"]) #navbar { box-sizing: border-box; padding-left: 16px; }
+    :host(bili-comments):host-context(html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"]) #contents { margin-top: 12px; }
+    :host(bili-comments) #header > bili-comments-header-renderer { background: transparent !important; box-shadow: none !important; }
     :is(.pubdate, .time, .sub-reply-info, .reply-info) { color: var(--bc-secondary-color) !important; }
     a[href] { color: var(--bc-link-color); }
     :is(textarea, input:not([type]), input[type="text"], [contenteditable="true"], #input) {
@@ -717,13 +750,36 @@
     }
     :is(input, textarea)::placeholder { color: var(--bc-placeholder-color) !important; opacity: 1; }
     :is(input, textarea, [contenteditable="true"]):focus-visible { outline: 2px solid var(--bc-focus); }
+    /* The editor shell, rich-text #input wrapper and actual contenteditable
+       are separate nodes. Only the shell owns the field tint and rim. */
+    :host(bili-comment-box) #editor {
+      background: var(--bc-input-bg) !important; border-color: var(--bc-glass-border);
+      box-shadow: inset 0 0 0 1px var(--bc-glass-border); border-radius: var(--bc-control-radius);
+    }
+    :host(bili-comment-box) #editor:focus-within {
+      border-color: transparent; box-shadow: 0 0 0 2px var(--bc-focus);
+    }
+    :host(bili-comment-box) :is(bili-comment-rich-textarea,bili-comment-textarea) {
+      --bili-comment-textarea-bg: transparent;
+    }
+    :host(bili-comment-rich-textarea) :is(#input,.brt-editor),
+    :host(bili-comment-textarea) #input {
+      background: transparent !important; box-shadow: none !important; border-color: transparent;
+    }
+    /* Focus belongs to the rounded shell across the nested shadow roots.
+       Standalone editors keep the generic accessible focus indicator. */
+    :host(bili-comment-rich-textarea):host-context(bili-comment-box) :is(#input,.brt-editor):focus-visible,
+    :host(bili-comment-textarea):host-context(bili-comment-box) #input:focus-visible { outline: none; }
+    :host(bili-comment-rich-textarea) .brt-placeholder {
+      color: var(--bc-placeholder-color) !important;
+    }
     #limit-mask-wall::before { background: linear-gradient(transparent, var(--bc-popup-bg)) !important; }
     #limit-mask-wall::after { background: var(--bc-popup-bg) !important; }
     :host(bili-comments):host-context(html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"]) :is(.fixed-reply-box,.fixed-replybox,#fixed-reply-box,#fixedbox) {
       background: var(--bc-glass-fallback-bg) !important;
     }
     :host(bili-comment-box):host-context(html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"]) {
-      background: var(--bc-glass-bg-strong) !important; border-radius: var(--bc-glass-radius);
+      background: transparent !important;
     }
     :host-context(html[data-bc-enabled="true"][data-bc-page="video"]) :is(.pubdate,.reply-info,.sub-reply-info) :is(button,a) { color: var(--bc-secondary-color) !important; }
     /* Current comment header teleports the editor into this wrapper on scroll.
@@ -733,5 +789,5 @@
     }
   `;
   globalThis.BiliThemePage = Object.freeze({ profiles, classify, css, shadowCSS, glassMaterial, navigationCSS, sampleBackdrop,surfaceGroups,submenuSurfaces,homeVideoInfo,homeVideoCover,homeCardLayoutCSS,homeCardSpacingCSS,homeCarouselCSS,watchLayoutCSS,
-    layoutSelector: Object.values(profiles).map((p) => p.layout).filter(Boolean).join(", ") });
+    watchCommentGlass,layoutSelector: Object.values(profiles).map((p) => p.layout).filter(Boolean).join(", ") });
 })();

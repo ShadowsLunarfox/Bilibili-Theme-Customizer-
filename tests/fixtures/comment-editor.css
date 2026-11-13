@@ -1,0 +1,71 @@
+/* Rich-text editor CSS from official bili-comments build bee9afe43a (2026-10-22). */
+
+    :host {
+      --bili-comment-textarea-bg: transparent;
+      --bili-comment-textarea-color: var(--text1);
+      --bili-comment-textarea-placeholder-color: var(--text3);
+      --bili-comment-textarea-padding: 8px;
+      --bili-comment-textarea-font-size: 14px;
+      --brt-line-height: 32px;
+    }
+    :host {
+      display: flex;
+    }
+    #input {
+      min-height: 32px;
+      max-height: 100px;
+      line-height: 32px;
+      width: 100%;
+      font-size: var(--bili-comment-textarea-font-size);
+      font-family: inherit;
+      box-sizing: border-box;
+      color: var(--bili-comment-textarea-color);
+      background-color: var(--bili-comment-textarea-bg);
+    }
+    #input.active {
+      --brt-line-height: normal;
+    }
+    .brt-root {
+      position: relative;
+    }
+
+    .brt-placeholder {
+      position: absolute;
+      left: var(--brt-editor-padding-hrz, 8px);
+      top: var(--brt-editor-padding-vtc, 0);
+      color: var(--brt-placeholder-color, var(--text3, #9499a0));
+      font-size: var(--brt-font-size, 14px);
+      line-height: var(--brt-line-height, 20px);
+      pointer-events: none;
+    }
+    .brt-editor {
+      outline: none;
+      border: none;
+      box-sizing: border-box;
+      padding: var(--brt-editor-padding-vtc, 0) var(--brt-editor-padding-hrz, 8px);
+      font-size: var(--brt-font-size, 14px);
+      line-height: var(--brt-line-height, 20px);
+      min-height: var(--brt-line-height, 20px);
+      overflow-y: auto;
+      max-height: 100px;
+    }
+
+    .brt-editor .brt-hl {
+      color: var(--text_link, #008ac5);
+    }
+
+    .brt-hl.goods::before,
+    .brt-hl.goods-collection::before {
+      font-family: "pc-comments-cljzkg6fxb9";
+      content: "\e000";
+      text-rendering: geometricPrecision;
+    }
+
+    .brt-editor img {
+      vertical-align: text-bottom;
+    }
+
+    .brt-editor a {
+      color: var(--text_link, #008ac5);
+      text-decoration: none;
+    }

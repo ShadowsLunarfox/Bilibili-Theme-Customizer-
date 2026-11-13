@@ -201,7 +201,7 @@
     syncWallpaperPlayback();
   }
 
-  function placeGlass(layer, rect, zIndex, radius = "0px", nativeBackdrop = false, category = false, videoInfo = false, scrolls = false) {
+  function placeGlass(layer, rect, zIndex, radius = "0px", nativeBackdrop = false, category = false, videoInfo = false, scrolls = false, comments = false) {
     const set=(name,value)=>{if(layer.style.getPropertyValue(name)!==value)layer.style.setProperty(name,value);};
     set("display", "block");
     set("position",scrolls?"absolute":"fixed");
@@ -211,7 +211,7 @@
     set("height", `${rect.height}px`);
     set("z-index", `${zIndex}`);
     set("border-radius", radius);
-    const coordinateSpace=scrolls?"document":"viewport",kind=videoInfo?"video-info":category?"categories":null;
+    const coordinateSpace=scrolls?"document":"viewport",kind=comments?"comments":videoInfo?"video-info":category?"categories":null;
     if(layer.dataset.bcScroll!==coordinateSpace)layer.dataset.bcScroll=coordinateSpace;
     if(kind){if(layer.dataset.bcSurfaceKind!==kind)layer.dataset.bcSurfaceKind=kind;}
     else if(layer.hasAttribute('data-bc-surface-kind'))delete layer.dataset.bcSurfaceKind;
@@ -261,9 +261,20 @@
         rect={left,top,right,bottom,width:Math.max(0,right-left),height:Math.max(0,bottom-top)};
       }
     }
-    const radius=videoInfo?`0px 0px ${getComputedStyle(root).getPropertyValue('--bc-card-radius')} ${getComputedStyle(root).getPropertyValue('--bc-card-radius')}`:
+    let radius=videoInfo?`0px 0px ${getComputedStyle(root).getPropertyValue('--bc-card-radius')} ${getComputedStyle(root).getPropertyValue('--bc-card-radius')}`:
       category?getComputedStyle(root).getPropertyValue('--bc-category-radius'):computed.borderRadius;
-    return { rect,category,videoInfo,scrolls, zIndex: parseInt(computed.zIndex, 10), radius,
+    const comments=root.getAttribute('data-bc-page')==='video' && element.matches(pageTheme.watchCommentGlass);
+    if(comments) {
+      // A comment list can be thousands of pixels tall. Blur only its visible
+      // intersection; native content and its containing blocks stay untouched.
+      const left=Math.max(0,rect.left),right=Math.min(innerWidth,rect.right);
+      const top=Math.max(0,rect.top),bottom=Math.min(innerHeight,rect.bottom);
+      if(right<=left || bottom<=top)return null;
+      radius=`${top===rect.top?computed.borderTopLeftRadius:'0px'} ${top===rect.top?computed.borderTopRightRadius:'0px'} ${bottom===rect.bottom?computed.borderBottomRightRadius:'0px'} ${bottom===rect.bottom?computed.borderBottomLeftRadius:'0px'}`;
+      rect={left,right,top,bottom,width:right-left,height:bottom-top};
+      scrolls=false;
+    }
+    return { rect,category,videoInfo,comments,scrolls, zIndex: parseInt(computed.zIndex, 10), radius,
       nativeBackdrop: Boolean(computed.backdropFilter && computed.backdropFilter !== "none") };
   }
 
@@ -348,7 +359,7 @@
         surfaceGlasses.set(node,glass);
       }
       if(glass.dataset.bcLevel!==level)glass.dataset.bcLevel=level;
-      placeGlass(glass,geometry.rect,zIndex,geometry.radius,geometry.nativeBackdrop,geometry.category,geometry.videoInfo,geometry.scrolls);
+      placeGlass(glass,geometry.rect,zIndex,geometry.radius,geometry.nativeBackdrop,geometry.category,geometry.videoInfo,geometry.scrolls,geometry.comments);
     }
     for(const [node,glass] of surfaceGlasses) if(!visible.has(node) && (includeDocument || glass.dataset.bcScroll!=='document' || dirtySurfaceNodes.has(node) || !node.isConnected)) {
       glass.remove();surfaceGlasses.delete(node);
