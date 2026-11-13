@@ -26,6 +26,9 @@ import {nativeWatchFixture,runNativeWatchChecks} from './watch-native.mjs';
 import {watchAdsFixture,runWatchAdChecks} from './watch-ads.mjs';
 import {subpageMenusFixture,runSubpageMenuChecks} from './subpage-menus.mjs';
 import {runWatchCommentChecks} from './watch-comments.mjs';
+import {spacePageFixture,runSpacePageChecks} from './space-page.mjs';
+import {messageCenterFixture,runMessageCenterChecks} from './message-center.mjs';
+import {runGlassConsistencyChecks} from './glass-consistency.mjs';
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const browserExtraArgs = process.env.BC_TEST_NO_SANDBOX === "1" ? ["--no-sandbox"] : [];
@@ -44,6 +47,10 @@ const nativeWatchMode = process.env.BC_TEST_NATIVE_WATCH;
 const watchAdsMode = process.env.BC_TEST_WATCH_ADS;
 const subpageMenusMode = process.env.BC_TEST_SUBPAGE_MENUS;
 const watchCommentsMode = process.env.BC_TEST_WATCH_COMMENTS;
+const spacePageMode = process.env.BC_TEST_SPACE_PAGE;
+const messageCenterMode = process.env.BC_TEST_MESSAGE_CENTER;
+const nativeGlassMode = process.env.BC_TEST_NATIVE_GLASS;
+const glassConsistencyMode = process.env.BC_TEST_GLASS_CONSISTENCY;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8"));
 const bridge = `
@@ -197,6 +204,10 @@ async function runBrowser(executable) {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(homescreenFixture(rt.BC));
       } else if (path === "/watch-page.html") {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(watchPageFixture());
+      } else if (path === "/space-page.html") {
+        response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(spacePageFixture());
+      } else if (path === "/message-center.html") {
+        response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(messageCenterFixture());
       } else if (path === "/watch-variant.html") {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(watchVariantFixture());
       } else if (path === "/watch-native.html") {
@@ -268,6 +279,10 @@ async function runBrowser(executable) {
     if(watchVariantMode){await runWatchRegressionChecks({cdp,base,until,screenshots:screenshotDirectory,baseline:watchVariantMode==='before'});return;}
     if(nativeWatchMode){await runNativeWatchChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(watchCommentsMode){await runWatchCommentChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
+    if(spacePageMode){await runSpacePageChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
+    if(messageCenterMode){await runMessageCenterChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
+    if(nativeGlassMode){await runLiquidChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
+    if(glassConsistencyMode){await runGlassConsistencyChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(watchAdsMode){await runWatchAdChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(subpageMenusMode){await runSubpageMenuChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(filteredLayoutMode){
@@ -292,9 +307,9 @@ async function runBrowser(executable) {
     assert.equal(await style(".nav-search-content", "backdropFilter"), "none");
     assert.equal(await style(".user-card-m-exp", "backgroundColor"), "rgba(0, 0, 0, 0)");
     await page.evaluate('document.querySelector(".v-popover-content").style.visibility="hidden"');
-    await until(page, 'document.querySelectorAll(".bc-theme-popover-glass").length === 1');
+    await until(page, 'getComputedStyle(document.querySelector(".v-popover-content")).visibility === "hidden"');
     await page.evaluate('document.querySelector(".v-popover-content").style.visibility="visible"');
-    await until(page, 'document.querySelectorAll(".bc-theme-popover-glass").length === 2');
+    await until(page, 'getComputedStyle(document.querySelector(".v-popover-content")).visibility === "visible"');
     await patch({ textColor: "#111111", opacity: 37, blur: 8 });
     assert.equal(await style("#sample-text", "color"), "rgb(17, 17, 17)");
     assert.equal(await style(".desc-content", "color"), "rgb(17, 17, 17)");
@@ -312,7 +327,7 @@ async function runBrowser(executable) {
     assert.equal(await style('a[href="/c/gym/"]', "display"), "none");
     await page.evaluate(`document.querySelector('.bili-header__bar').outerHTML = document.querySelector('.bili-header__bar').outerHTML;
       const channel = document.createElement('div');channel.className='header-channel';document.querySelector('main').append(channel);`);
-    await until(page, 'document.querySelector("#bc-theme-channel-glass")?.style.display === "block"');
+    await until(page, 'getComputedStyle(document.querySelector(".header-channel")).backdropFilter.includes("blur(")');
     assert.equal(await style(".left-entry__item", "display"), "none");
     await until(page, 'document.querySelector("bili-comments").shadowRoot.querySelector("[data-bc-owned]") !== null');
     assert.equal(await page.evaluate('getComputedStyle(document.querySelector("bili-comments").shadowRoot.querySelector("#comment-text")).color'), "rgb(17, 17, 17)");
@@ -432,8 +447,11 @@ async function runBrowser(executable) {
     await runWatchRegressionChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runNativeWatchChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runWatchCommentChecks({cdp,base,until,screenshots:screenshotDirectory});
+    await runSpacePageChecks({cdp,base,until,screenshots:screenshotDirectory});
+    await runMessageCenterChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runWatchAdChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runSubpageMenuChecks({cdp,base,until,screenshots:screenshotDirectory});
+    await runGlassConsistencyChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runMinimalistChecks({ cdp, base, until, screenshots: screenshotDirectory, mp4: recordedMP4 });
     await runReferenceChecks({ cdp, base, until, screenshots: screenshotDirectory });
     await runCompatibilityMatrix({ cdp, base, until, mp4: recordedMP4,

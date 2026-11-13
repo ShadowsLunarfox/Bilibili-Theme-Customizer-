@@ -56,7 +56,7 @@ export async function runSubpageMenuChecks({cdp,base,until,screenshots}){
   const css=(s,p)=>page.evaluate(`getComputedStyle(document.querySelector(${JSON.stringify(s)}))[${JSON.stringify(p)}]`);
   const geometry=()=>page.evaluate(`['#profile-menu','#services-trigger','#services-menu','#theme-trigger','#theme-menu'].map(s=>{const n=document.querySelector(s),r=n.getBoundingClientRect(),c=getComputedStyle(n);return [r.x,r.y,r.width,r.height,c.position,c.fontSize,c.lineHeight,c.overflow,c.transform];})`);
   const focusSub=async id=>{await page.evaluate('document.querySelector("#'+id+'-trigger").focus()');await until(page,'getComputedStyle(document.querySelector("#'+id+'-menu").parentElement).opacity === "1"');await settle(page);};
-  const layerAt=selector=>page.evaluate(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return [...document.querySelectorAll('.bc-theme-popover-glass,.bc-theme-surface-glass')].filter(n=>{const b=n.getBoundingClientRect();return Math.abs(b.x-r.x)<1&&Math.abs(b.y-r.y)<1&&Math.abs(b.width-r.width)<1&&Math.abs(b.height-r.height)<1;}).length;})()`);
+  const nativeGlassAt=selector=>page.evaluate(`(()=>{const n=document.querySelector(${JSON.stringify(selector)}),r=n.getBoundingClientRect();return !!(r.width&&r.height&&getComputedStyle(n,n.matches('.v-popover-content')?'::before':null).backdropFilter!=="none");})()`);
   const rgb=c=>c.match(/[\d.]+/g).map(Number),over=(paint,base)=>{const p=rgb(paint),a=p[3]??1;return p.slice(0,3).map((v,i)=>v*a+base[i]*(1-a));};
   const lum=c=>c.slice(0,3).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((a,v,i)=>a+v*[.2126,.7152,.0722][i],0);
   const contrast=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
@@ -68,12 +68,12 @@ export async function runSubpageMenuChecks({cdp,base,until,screenshots}){
   await patch({enabled:false,minimalistEnabled:false});await open('profile');const native=await geometry();
   const vipColor=await css('.vip-item__link','color'),vipBG=await css('.vip-item__link','backgroundColor');
   await patch({enabled:true,material:'glass',opacity:58,textColor:'#ffffff'});await assertVisualOnlyCSS(page);
-  await open('profile');await focusSub('services');await until(page,'document.querySelectorAll(".bc-theme-popover-glass").length === 2');
+  await open('profile');await focusSub('services');await until(page,'getComputedStyle(document.querySelector("#services-menu"),"::before").backdropFilter !== "none"');
   assert.deepEqual(await geometry(),native,'profile and flyout native size/position/type/overflow preserved');
   assert.equal(await css('.avatar-panel-popover','backgroundColor'),'rgba(0, 0, 0, 0)','profile body shares its one backing');
   assert.equal(await css('.user-card-m-exp','backgroundColor'),'rgba(0, 0, 0, 0)','in-flow nested body does not gain a second tint');
   assert.notEqual(await css('#services-menu','backgroundColor'),'rgba(0, 0, 0, 0)','out-of-parent submenu has its own backing');
-  assert.equal(await layerAt('#services-menu'),1,'one blur layer follows the flyout bounds');
+  assert.equal(await nativeGlassAt('#services-menu'),true,'native flyout owns its backdrop filter');
   assert.equal(await css('.vip-item__link','color'),vipColor);assert.equal(await css('.vip-item__link','backgroundColor'),vipBG);
   await page.evaluate('document.querySelector("#services-menu a").click()');assert.equal(await page.evaluate('menuActions'),1);
   // Exercise the native pale-hover state with a real browser pointer.
@@ -91,7 +91,7 @@ export async function runSubpageMenuChecks({cdp,base,until,screenshots}){
   await cdp.send('Input.dispatchMouseEvent',{type:'mouseMoved',...wrappedPoint},page.sessionId);await page.evaluate('new Promise(r=>setTimeout(r,350))');
   assert.notEqual(await css('#services-trigger','backgroundColor'),'rgb(227, 229, 231)','component-local graph colors cannot restore the pale trigger');
   assert.notEqual(await css('#services-menu','backgroundColor'),'rgba(0, 0, 0, 0)','an intermediate content wrapper cannot clear the flyout backing');
-  assert.equal(await layerAt('#services-menu'),1,'wrapped flyout still has one matching layer');
+  assert.equal(await nativeGlassAt('#services-menu'),true,'wrapped flyout retains its own CSS frost');
   await capture('profile-variant-after');
   await page.evaluate(`(()=>{document.querySelector('#services-wrap').style.removeProperty('--graph_bg_thick');const wrap=document.querySelector('#submenu-content-wrap');wrap.replaceWith(...wrap.childNodes);})()`);
   for(const [ink,wallpaper] of [['#ffffff',[255,255,255]],['#111111',[0,0,0]]]){
@@ -108,10 +108,10 @@ export async function runSubpageMenuChecks({cdp,base,until,screenshots}){
   await patch({textColor:'#ffffff'});await open('message');assert.equal(await css('.message-inner-list__item--num','backgroundColor'),'rgb(250, 90, 87)','notification badge stays native');
   await open('favorite');assert.equal(await css('.tab-item--active','backgroundColor'),'rgb(0, 174, 236)','selected folder stays blue');await capture('favorites');
   await open('search');await page.evaluate('document.querySelector("#search-query").focus()');await page.type('充电器');assert.equal(await page.evaluate('document.querySelector("#search-query").value'),'充电器','search input still edits');
-  for(const width of [1024,1440,1920,2560]){await page.resize(width,1100);await open('profile');await focusSub('services');assert.equal(await layerAt('#services-menu'),1);}
+  for(const width of [1024,1440,1920,2560]){await page.resize(width,1100);await open('profile');await focusSub('services');assert.equal(await nativeGlassAt('#services-menu'),true);}
   // Popups can also be portaled outside the header. The same two surfaces work.
-  await page.resize(1652,1100);await page.evaluate(`const portal=document.createElement('div');portal.id='portal';portal.className='bili-header header-avatar-wrap';portal.setAttribute('data-v-8db90999','');portal.style.cssText='position:fixed;left:40%;top:70px;z-index:1002';portal.append(document.querySelector('#profile-positioner'));document.body.append(portal);`);await settle(page);await settle(page);await focusSub('services');await until(page,'document.querySelectorAll(".bc-theme-surface-glass").length >= 2');assert.equal(await layerAt('#services-menu'),1);
-  await page.evaluate('window.scrollTo(0,500)');await settle(page);await settle(page);assert.equal(await layerAt('#services-menu'),1,'flyout layer follows scrolling');await capture('portaled-services');
+  await page.resize(1652,1100);await page.evaluate(`const portal=document.createElement('div');portal.id='portal';portal.className='bili-header header-avatar-wrap';portal.setAttribute('data-v-8db90999','');portal.style.cssText='position:fixed;left:40%;top:70px;z-index:1002';portal.append(document.querySelector('#profile-positioner'));document.body.append(portal);`);await settle(page);await settle(page);await focusSub('services');await until(page,'getComputedStyle(document.querySelector("#services-menu"),"::before").backdropFilter !== "none"');assert.equal(await nativeGlassAt('#services-menu'),true);
+  await page.evaluate('window.scrollTo(0,500)');await settle(page);await settle(page);assert.equal(await nativeGlassAt('#services-menu'),true,'native flyout frost follows its own element');await capture('portaled-services');
   await patch({material:'clear'});assert.equal(await css('#services-menu','backgroundColor'),'rgba(0, 0, 0, 0)');
   await page.evaluate('document.querySelector(".bili-header__bar > .header-avatar-wrap").append(document.querySelector("#profile-positioner"));document.querySelector("#portal").remove();window.scrollTo(0,0)');await patch({enabled:false});await open('profile');assert.deepEqual(await geometry(),native,'disabling restores native menu geometry');
   assert.equal(await css('#services-menu','backgroundColor'),'rgb(255, 255, 255)');await until(page,'!document.querySelector("[data-bc-owned]")');

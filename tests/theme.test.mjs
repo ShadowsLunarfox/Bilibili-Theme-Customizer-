@@ -11,6 +11,8 @@ test("page classification respects host, route, and embedded layouts", () => {
   for (const [url, expected] of [
     ["https://www.bilibili.com/", "home"], ["https://www.bilibili.com/en", "home"],
     ["https://www.bilibili.com/zh-Hans", "home"], ["https://t.bilibili.com/", "dynamic"],
+    ["https://message.bilibili.com/#/whisper", "message"], ["https://message.bilibili.com/#/reply", "message"],
+    ["https://message.bilibili.com/#/system", "message"], ["https://message.bilibili.com/#/config", "message"],
     ["https://www.bilibili.com/video/BV1xx", "video"], ["https://space.bilibili.com/123/dynamic", "space"],
     ["https://search.bilibili.com/all?keyword=test", "search"], ["https://www.bilibili.com/read/cv123", "article"],
     ["https://www.bilibili.com/opus/123", "opus"], ["https://t.bilibili.com/opus/123", "opus"],
@@ -20,6 +22,7 @@ test("page classification respects host, route, and embedded layouts", () => {
   assert.equal(theme.classify("https://www.bilibili.com/", (s) => s === theme.profiles.dynamic.layout), "dynamic");
   assert.equal(theme.classify("https://www.bilibili.com/video/BV1", () => true), "video", "routes win over obsolete DOM");
   assert.equal(theme.classify("https://space.bilibili.com/123", () => true), "space", "dynamic cards do not reclassify a space page");
+  assert.equal(theme.classify("https://message.bilibili.com/#/whisper", () => true), "message", "message host wins over content embedded in a chat");
   for (const [name, profile] of Object.entries(theme.profiles)) {
     if (profile.layout) assert.equal(theme.classify("https://example.test/", (selector) => selector === profile.layout), name);
   }

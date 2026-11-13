@@ -1,5 +1,7 @@
 /* Page classification and component-scoped CSS; no persistence or DOM writes. */
 (() => {
+  // CSS-module names retain these component prefixes across asset hash changes.
+  const messagePart=(...names)=>`:is(${names.flatMap(name=>[`[class^="_${name}_"]`,`[class*=" _${name}_"]`]).join(',')})`;
   const profiles = Object.freeze({
     home: {
       layout: ".bili-feed4, .bili-feed4-layout, .recommended-container_floor-aside, .bili-header__channel",
@@ -28,10 +30,17 @@
         .video-desc, .video-desc-v1, .video-desc-v2, .video-tag-container`,
       inner: ".desc-content, .desc-info, .video-info-detail, .video-info-title"
     },
+    message: {
+      layout: ".message-layout",
+      canvas: "#message-pc-app, .message-layout, .message-main, .message-bg, .message-bgc",
+      surfaces: `.message-aside, .message-header, .message-main .message-box-shadow,
+        .im-container:not(:where(.message-box-shadow *))`,
+      inner: ".message-sidebar, .message-content__wrapper, .message-content__inner"
+    },
     space: {
       layout: ".space-main, .space-navbar, .space-header",
       canvas: ".space-main, .space-dynamic, .space-container",
-      surfaces: `.space-header .upinfo, .space-navbar, .space-main .section-wrap,
+      surfaces: `.space-navbar, .space-main .section-wrap,
         .space-main .home-aside-section, .space-main .space-dynamic-inner,
         .space-main .dynamic-aside-section, .space-main .side-nav,
         .space-main .upload-content, .space-main .subscribe-content, .space-main .space-lists,
@@ -84,7 +93,8 @@
     .nav-search-panel, .search-panel, .search-suggest,
     .search-popover, .v-popover-content, .vui_popover-content, .user-card-m-exp, .van-dialog, .van-popover,
     .van-popup, .bui-dropdown-items, .bili-mini-content-wp, .ant-modal-content,
-    .ant-popover-inner, .ant-dropdown-menu, .el-dialog, .el-popover, .el-dropdown-menu`;
+    .ant-popover-inner, .ant-dropdown-menu, .el-dialog, .el-popover, .el-dropdown-menu,
+    html[data-bc-page="message"] ${messagePart('ContextMenu','Modal','SettingMenu','MsgNotify__MoreDropdown','MsgAppointment__Menu')}`;
   const comments = `.comment-container:not(:has(bili-comments)), #commentapp:not(:has(bili-comments)),
     #comment:not(:has(bili-comments)), .reply-warp:not(:has(bili-comments)),
     .reply-container:not(:has(bili-comments)), bili-comments`;
@@ -109,8 +119,8 @@
     --text1: var(--bc-foreground, var(--bc-text-color)); --text2: var(--bc-secondary-color);
     --text3: var(--bc-secondary-color); --text4: var(--bc-disabled-color);
     --line_regular: var(--bc-glass-border); --line_light: var(--bc-glass-border);`;
-  // A painted rim avoids adding border width to native boxes. Background blur
-  // lives in owned layers so native containing blocks and media stay untouched.
+  // An inset rim preserves border widths. Native panels own their backdrop
+  // filters; foreground text, images and player pixels remain unfiltered.
   const material = (level) => `
     background-color: var(--bc-glass-bg-${level}) !important; background-image: none !important;
     border-color: var(--bc-glass-border); border-radius: var(--bc-glass-radius);
@@ -121,6 +131,11 @@
   // a parent menu and need an independent backing, unlike its in-flow body.
   const submenuSurfaces = '.v-popover .v-popover-content, .v-popover-content.sub-links-item, .vui_popover-content';
   const navigation='.bili-header__bar, .bili-header__channel, .header-channel, .search-header, .search-sticky-header, .search-tabs, .space-navbar, .bili-dyn-list-tabs';
+  // These positioned native containers own overflowing menus. Frosting the
+  // container itself creates a backdrop root that cuts off a child's blur.
+  // A CSS background pseudo-element keeps the frost below the contents without
+  // introducing DOM overlays, measurements or scroll/resize synchronization.
+  const glassMenuContainers='.bili-header__bar, .v-popover-content';
   const tools='.fixed-tool-panel, .float-nav';
   const toolbarButtons=`.palette-button-wrap > button, .palette-button-wrap .watchlater-pip-button-inner,
     .palette-button-wrap .flexible-roll-btn-inner, .palette-button-wrap .flexible-btn-inner,
@@ -143,9 +158,9 @@
   const allContent=[comments,tools,'.bili-video-card__info,.video-card__info',...Object.values(profiles).map(p=>p.surfaces).filter(Boolean)].join(',');
   function surfaceGroups(page) {
     const content=page==='home'?`${homeVideoInfo}, .recommended-swipe .recommended-swipe-body`:profiles[page]?.surfaces;
-    // Watch comments use one viewport-clipped frost behind their native-flow
-    // tint, including classic lists and inaccessible shadow roots.
-    return {light:`${navigation},${toolbarButtons}`,content:`${page==='video'?watchCommentGlass:comments}, ${tools}${content?', '+content:''}`,strong:popovers};
+    // Light-DOM comments use their real lists; open shadow lists receive the
+    // same CSS material through shadowCSS, with an unfiltered outer host.
+    return {light:`${navigation},${toolbarButtons}${page==='message'?', .message-header':''}`,content:`${page==='video'?watchCommentGlass:comments}, ${tools}${content?', '+content:''}`,strong:popovers};
   }
   // Native elements retain every dimension, border width, font metric, layout,
   // overflow rule and breakpoint. Only appearance is changed here.
@@ -194,6 +209,7 @@
   }
   function classify(url, matches = () => false) {
     const { hostname, pathname } = new URL(url);
+    if (hostname === "message.bilibili.com") return "message";
     if (/^\/opus(?:\/|$)/.test(pathname)) return "opus";
     if (/^\/read(?:\/|$)/.test(pathname)) return "article";
     if (/^\/(?:bangumi|anime|guochuang|movie|tv|variety|documentary)(?:\/|$)/.test(pathname)) return "bangumi";
@@ -203,7 +219,7 @@
     if (/^\/video(?:\/|$)/.test(pathname)) return "video";
     if (hostname === "live.bilibili.com") return "live";
     // DOM fallback also handles layouts replaced without a route change.
-    for (const name of ["dynamic", "space", "search", "opus", "article", "live", "video", "bangumi", "home"]) {
+    for (const name of ["message", "dynamic", "space", "search", "opus", "article", "live", "video", "bangumi", "home"]) {
       if (matches(profiles[name].layout)) return name;
     }
     return hostname === "www.bilibili.com" && ["/", "/en", "/zh-Hans"].includes(pathname) ? "home" : "other";
@@ -454,6 +470,183 @@
        the heading so that card has the same shell and inset as its siblings. */
     html[data-bc-enabled="true"][data-bc-page="video"][data-bc-material="glass"] body .right-container :is(.recommend-list-v1,.recommend-list-pr) .rec-title { box-sizing: border-box; padding: 10px 12px; }
   `;
+  const space='html[data-bc-enabled="true"][data-bc-page="space"] body';
+  const spaceControls=`.radio-filter__item:not(:is(.active,.is-active,.selected,.is-selected,.radio-filter__item--active,.radio-filter__item--selected,[aria-checked="true"],[aria-selected="true"])),
+    .section-wrap__header .vui_button:not(:is([class*="blue"],[class*="pink"],[class*="primary"]))`;
+  const spaceGlass='html[data-bc-enabled="true"][data-bc-page="space"][data-bc-material="glass"] body';
+  const spaceCSS=`
+    /* The avatar overlaps this native banner row. A separate rounded panel
+       starts below the avatar and draws an artificial edge through it. Keep
+       the banner continuous; only the navigation/content below own panels. */
+    ${space} .space-header .upinfo {
+      background: transparent !important; border-color: transparent;
+      border-radius: 0; box-shadow: none !important;
+    }
+    /* A fading banner footer supports the identity without boxing the avatar
+       into a second card. Its native artwork remains visible above the fade. */
+    ${spaceGlass} .space-header .upinfo {
+      background: linear-gradient(180deg,transparent 0%,var(--bc-glass-bg-content) 42%,var(--bc-glass-bg-strong) 100%) !important;
+    }
+    ${spaceGlass} .space-header .header-upinfo { color: var(--bc-foreground); text-shadow: var(--bc-text-shadow); }
+    ${spaceGlass} .space-header .header-upinfo :is(.header-name,.nickname,h1) { color: var(--bc-foreground); }
+    ${spaceGlass} .space-header .header-upinfo :is(.header-sign,.header-signature,p) { color: var(--bc-secondary-color); }
+    ${spaceGlass} .space-header .upinfo :is(.header-avatar-wrap,.header-avatar,.bili-avatar):not(:where(.header-avatar-wrap *,.header-avatar *,.bili-avatar *)) {
+      border-radius: 50%; box-shadow: 0 0 0 3px var(--bc-glass-bg-strong),0 6px 20px rgba(0,0,0,.18);
+    }
+    ${spaceGlass} .space-header .operations .vui_button:not(:is([class*="blue"],[class*="pink"],[class*="primary"])) {
+      background: var(--bc-control-bg) !important; color: var(--bc-foreground) !important;
+      border-color: var(--bc-glass-border); border-radius: 10px;
+      box-shadow: inset 0 0 0 1px var(--bc-glass-border);
+    }
+    ${spaceGlass} .space-header .operations .vui_button:not(:is([class*="blue"],[class*="pink"],[class*="primary"])):is(:hover,:focus-visible) {
+      background: var(--bc-hover-bg) !important; border-color: var(--bc-glass-border-hover);
+    }
+    ${spaceGlass} .space-navbar {
+      background: var(--bc-glass-bg-strong) !important; border-top-color: transparent;
+      border-radius: 0 0 var(--bc-glass-radius) var(--bc-glass-radius);
+      box-shadow: inset 0 -1px 0 var(--bc-glass-border),0 8px 24px rgba(0,0,0,.10);
+    }
+    /* Space uses both the site palette and VUI's separate palette. Updating
+       only --text1 leaves pale native controls under the new light text. */
+    ${space} :is(.space-main,.space-navbar,.space-header .upinfo) {
+      ${palette} ${watchGraphPalette}
+      --v_bg1: var(--bc-control-bg); --v_bg2: var(--bc-hover-bg); --v_bg3: var(--bc-selected-bg);
+      --v_bg1_float: var(--bc-glass-bg-strong); --v_bg2_float: var(--bc-control-bg);
+      --v_text1: var(--bc-foreground); --v_text2: var(--bc-secondary-color);
+      --v_text3: var(--bc-secondary-color); --v_text4: var(--bc-disabled-color);
+      --v_line_regular: var(--bc-glass-border); --v_line_light: var(--bc-glass-border);
+      color: var(--bc-foreground);
+    }
+    ${space} .space-main .section-wrap :is(.section-wrap__header,.section-wrap__content) {
+      background: transparent !important; box-shadow: none;
+    }
+    ${space} .space-main .section-wrap :is(${spaceControls}) {
+      background: var(--bc-control-bg) !important; color: var(--bc-foreground) !important;
+      border-color: var(--bc-glass-border); text-shadow: var(--bc-text-shadow);
+    }
+    ${space} .space-main .section-wrap :is(${spaceControls}):is(:hover,:focus-visible):not(:disabled):not([aria-disabled="true"]) {
+      background: var(--bc-hover-bg) !important; border-color: var(--bc-glass-border-hover);
+    }
+    ${space} .space-main .section-wrap :is(${spaceControls}):focus-visible {
+      outline: 2px solid var(--bc-focus); outline-offset: 2px;
+    }
+    ${space} .space-main :is(.top-video__title,.section-wrap__title) { color: var(--bc-foreground) !important; }
+    ${space} .space-main :is(.top-video__desc,.top-video__meta) { color: var(--bc-secondary-color) !important; }
+    /* A single search shell, matching the homepage. The global input rule
+       otherwise paints a second dark rectangle inside the pale native form. */
+    ${space} .bili-header__bar :is(#nav-searchform,.nav-search-form) {
+      background: var(--bc-input-bg) !important; box-shadow: inset 0 0 0 1px var(--bc-glass-border);
+    }
+    ${space} .bili-header__bar :is(.center-search__bar:has(#nav-searchform,.nav-search-form),.nav-search-content,.nav-search-input) {
+      background: transparent !important; box-shadow: none !important; border-color: transparent !important;
+    }
+    ${space} .bili-header__bar :is(#nav-searchform,.nav-search-form):focus-within { outline: 2px solid var(--bc-focus); outline-offset: 2px; }
+    ${space} .bili-header__bar input:focus-visible { outline: none; }
+  `;
+  const spaceLayoutCSS=`
+    /* Keep the identity within the footer instead of leaving the portrait
+       lifted across its edge. The banner's outer footprint stays native. */
+    ${spaceGlass} .space-header .upinfo {
+      box-sizing: border-box; height: auto; min-height: 112px; padding-block: 16px;
+    }
+    ${spaceGlass} .space-header :is(.header-upinfo,.upinfo .header-avatar-wrap,.upinfo .header-avatar) { transform: none; }
+    /* The native sections are borderless. Once painted as panels their cover,
+       heading and controls need an inset, within the existing column width.
+       Nested sections keep their own native spacing and share the backing. */
+    html[data-bc-enabled="true"][data-bc-page="space"][data-bc-material="glass"] body .space-main .section-wrap:not(:where(.section-wrap *)) {
+      box-sizing: border-box; padding: 20px;
+    }
+  `;
+  const message='html[data-bc-enabled="true"][data-bc-page="message"] body';
+  const messageOutgoing=messagePart('MsgTextIsMe','MsgUnknownIsMe');
+  // Native elements own their glass everywhere. CSS follows layout, visibility
+  // and scrolling; no separately positioned or measured paint nodes exist.
+  const nativeGlassCSS=Object.keys(profiles).map(name=>{
+    const scope=`html[data-bc-enabled="true"][data-bc-page="${name}"][data-bc-material="glass"] body`;
+    const groups=surfaceGroups(name),content=`:is(${groups.content}):not(bili-comments)`;
+    return Object.entries({content,light:groups.light,strong:groups.strong}).map(([level,targets])=>`
+      ${scope} :where(${targets}) {
+        backdrop-filter: var(--bc-glass-filter${level==='light'?'':'-'+level});
+        -webkit-backdrop-filter: var(--bc-glass-filter${level==='light'?'':'-'+level});
+      }
+    `).join('\n')+`
+      ${scope} :where(${groups.light},${content},${groups.strong}) :where(${content}),
+      ${scope} :where(${groups.strong}) :where(${groups.strong}):not(:where(${submenuSurfaces})) {
+        backdrop-filter: none; -webkit-backdrop-filter: none;
+      }
+    `;
+  }).join('\n')+`
+    html[data-bc-enabled="true"][data-bc-page="home"][data-bc-material="glass"] body :is(${homeVideoInfo}) {
+      backdrop-filter: var(--bc-video-info-filter); -webkit-backdrop-filter: var(--bc-video-info-filter);
+    }
+    html[data-bc-enabled="true"][data-bc-material="glass"] body :is(${glassMenuContainers}) {
+      isolation: isolate; backdrop-filter: none; -webkit-backdrop-filter: none;
+    }
+    html[data-bc-enabled="true"][data-bc-material="glass"] body :is(${glassMenuContainers})::before {
+      content: ""; position: absolute; inset: 0; z-index: -1;
+      pointer-events: none; border-radius: inherit;
+      backdrop-filter: var(--bc-glass-filter-strong); -webkit-backdrop-filter: var(--bc-glass-filter-strong);
+    }
+    html[data-bc-enabled="true"][data-bc-material="glass"] body .bili-header__bar::before {
+      backdrop-filter: var(--bc-glass-filter); -webkit-backdrop-filter: var(--bc-glass-filter);
+    }
+  `;
+  const messageCSS=`
+    /* The inbox is a separate app. Its RGB canvas colors and CSS-module chat
+       panes otherwise sit above the extension wallpaper as opaque sheets. */
+    ${message} .message-layout {
+      ${palette} ${watchGraphPalette}
+      --line_bold: var(--bc-glass-border-hover); color: var(--bc-foreground);
+      scrollbar-color: var(--bc-glass-border-hover) transparent;
+    }
+    ${message} .message-header { ${material('light')} }
+    ${message} .im-container ${messagePart('IM','ChatWindow','MessageList','InfiniteScroll')} {
+      background: transparent !important; box-shadow: none;
+    }
+    ${message} .im-container ${messagePart('ChatFooter')} { background: var(--bc-control-bg); }
+    ${message} .message-sidebar__item:is(:hover,:focus-visible) { background: var(--bc-hover-bg); border-radius: var(--bc-control-radius); }
+    ${message} .message-sidebar__item.is-active { background: var(--bc-selected-bg); border-radius: var(--bc-control-radius); }
+    ${message} .im-container ${messagePart('SessionItemIsActive')} { background: var(--bc-selected-bg) !important; }
+    ${message} .im-container :is(${messagePart('SessionItemIsActive')},${messagePart('SessionItem')}:hover) ${messagePart('SessionItem__Message')} { color: var(--bc-foreground); }
+    ${message} .im-container ${messagePart('ChatPlaceholder')} p { color: var(--bc-secondary-color) !important; }
+    ${message} .im-container ${messagePart('SpinnerItem')}::after { background: var(--bc-secondary-color); }
+    /* Bubble paint is a small inset inside the shared chat backing. Avatars,
+       attached media, outgoing blue bubbles and sender role colors stay native. */
+    ${message} .im-container ${messagePart('MsgText','MsgUnknown')}:not(${messageOutgoing}):not(:where(${messagePart('Msg__ContentUp')} *)),
+    ${message} .im-container ${messagePart('MsgShare','MsgNotify')} {
+      background: var(--bc-control-bg) !important; color: var(--bc-foreground);
+      box-shadow: inset 0 0 0 1px var(--bc-glass-border);
+    }
+    /* The native rich-text renderer can expose contenteditable display nodes.
+       They are message contents, and must not receive the global input frame. */
+    ${message} .im-container ${messagePart('MsgText','MsgUnknown','MsgShare','MsgNotify')} :is([contenteditable],${messagePart('RichText','MsgText__Content','MsgText__Tip')}) {
+      background: transparent !important; border-color: transparent !important;
+      box-shadow: none !important; outline: none !important;
+    }
+    ${message} .im-container ${messagePart('MsgText__Tip')}:not(:where(${messageOutgoing} *)) { color: var(--bc-secondary-color) !important; }
+    ${message} .im-container ${messagePart('MessageSendBox')} :is(textarea,[contenteditable]) {
+      background: transparent !important; border-color: transparent !important;
+      box-shadow: none !important; outline: none !important;
+    }
+    ${message} .im-container ${messagePart('ChatFooter')}:focus-within { box-shadow: inset 0 2px 0 var(--bc-focus); }
+    ${message} .im-container ${messageOutgoing},
+    ${message} .im-container ${messagePart('Msg__ContentUp')} { color: var(--text_white,#fff) !important; }
+    ${message} .im-container :is(${messageOutgoing},${messagePart('Msg__ContentUp')}) :is(p,a,${messagePart('RichText','RichText__Link','MsgText__Content','MsgText__Tip')}) {
+      color: var(--text_white,#fff) !important;
+    }
+    ${message} ${messagePart('ContextMenu')} hr { background: var(--bc-glass-border); }
+    ${message} ${messagePart('ContextMenu__Option')}:hover { background: var(--bc-hover-bg); }
+    /* Match the single search shell on the other themed pages. */
+    ${message} .bili-header__bar :is(#nav-searchform,.nav-search-form) {
+      background: var(--bc-input-bg) !important; box-shadow: inset 0 0 0 1px var(--bc-glass-border);
+    }
+    ${message} .bili-header__bar :is(.center-search__bar:has(#nav-searchform,.nav-search-form),.nav-search-content),
+    ${message} .bili-header__bar :is(#nav-searchform,.nav-search-form) input {
+      background: transparent !important; box-shadow: none !important; border-color: transparent !important;
+    }
+    ${message} .bili-header__bar :is(#nav-searchform,.nav-search-form):focus-within { outline: 2px solid var(--bc-focus); outline-offset: 2px; }
+    ${message} .bili-header__bar input:focus-visible { outline: none; }
+  `;
   const css = Object.entries(profiles).map(([name, profile]) => {
     const scope = `${enabled}[data-bc-page="${name}"] body`;
     const surfaces = `${comments}${profile.surfaces ? `, ${profile.surfaces}` : ""}`;
@@ -541,19 +734,6 @@
     ${enabled} body :where(.bili-video-card__info--tit,.video-card__info--title) a { color: var(--bc-foreground, var(--bc-text-color)) !important; text-shadow: var(--bc-text-shadow); }
     /* Only the native metadata strip receives a localized contrast gradient. */
     ${enabled} body .bili-video-card__stats { background: linear-gradient(transparent,rgba(0,0,0,.5)); color: white; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
-    ${enabled} :where(#bc-theme-header-glass,#bc-theme-channel-glass,.bc-theme-popover-glass,.bc-theme-surface-glass) {
-      display: none; position: fixed; pointer-events: none; background: transparent;
-      backdrop-filter: var(--bc-glass-filter); -webkit-backdrop-filter: var(--bc-glass-filter);
-    }
-    ${enabled} .bc-theme-surface-glass[data-bc-level="content"] { backdrop-filter: var(--bc-glass-filter-content); -webkit-backdrop-filter: var(--bc-glass-filter-content); }
-    /* One measured paint layer per verified information container. Its bounds
-       include the native thumbnail/title gap, never the image or grid slot. */
-    ${enabled}[data-bc-page="home"] .bc-theme-surface-glass[data-bc-surface-kind="video-info"] {
-      background: var(--bc-video-info-bg);
-      backdrop-filter: var(--bc-video-info-filter); -webkit-backdrop-filter: var(--bc-video-info-filter);
-      box-shadow: inset 0 0 0 1px var(--bc-video-info-border);
-    }
-    ${enabled} :where(.bc-theme-popover-glass,.bc-theme-surface-glass[data-bc-level="strong"]) { backdrop-filter: var(--bc-glass-filter-strong); -webkit-backdrop-filter: var(--bc-glass-filter-strong); }
     @supports not (backdrop-filter: blur(1px)) {
       ${enabled} {
         --bc-glass-bg-light: var(--bc-glass-fallback-bg) !important;
@@ -561,8 +741,8 @@
         --bc-glass-bg-strong: var(--bc-glass-fallback-bg) !important;
         --bc-video-info-bg: var(--bc-glass-fallback-bg) !important;
         --bc-video-info-filter: none !important;
+        --bc-glass-filter: none !important; --bc-glass-filter-content: none !important; --bc-glass-filter-strong: none !important;
       }
-      ${enabled} :where(#bc-theme-header-glass,#bc-theme-channel-glass,.bc-theme-popover-glass,.bc-theme-surface-glass) { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
     }
     @media (prefers-reduced-transparency: reduce) {
       ${enabled} {
@@ -571,10 +751,10 @@
         --bc-glass-bg-strong: var(--bc-glass-fallback-bg) !important;
         --bc-video-info-bg: var(--bc-glass-fallback-bg) !important;
         --bc-video-info-filter: none !important;
+        --bc-glass-filter: none !important; --bc-glass-filter-content: none !important; --bc-glass-filter-strong: none !important;
       }
-      ${enabled} :where(#bc-theme-header-glass,#bc-theme-channel-glass,.bc-theme-popover-glass,.bc-theme-surface-glass) { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
     }
-    /* Header popovers use independent external material, including fallback.
+    /* Header popovers own their native material, including fallback.
        Search inside a floating header and nested popup bodies never blur twice. */
     ${enabled}[data-bc-material] body :where(${allContent},${navigation},${floating}) :where(${allContent}),
     ${enabled}[data-bc-material] body :where(${floating}) :where(${floating}):not(:where(${submenuSurfaces})) {
@@ -609,9 +789,13 @@
     ${enabled}[data-bc-page="home"] body .floor-single-card > .floor-card.single-card > .layer {
       background: transparent !important; border-color: transparent; box-shadow: none;
     }
-    ${enabled}[data-bc-page="home"] body :is(${homeVideoInfo}),
     ${enabled}[data-bc-page="home"] body :is(${homeVideoInfo}) :is(${homeInfoInner}) {
       background: transparent !important; border-color: transparent; border-radius: 0; box-shadow: none !important;
+    }
+    ${enabled}[data-bc-page="home"] body :is(${homeVideoInfo}) {
+      background: var(--bc-video-info-bg) !important; background-image: none !important;
+      border-color: transparent; border-radius: 0 0 var(--bc-card-radius) var(--bc-card-radius);
+      box-shadow: inset 0 0 0 1px var(--bc-video-info-border);
     }
     ${enabled}[data-bc-page="home"] body :is(${homeShells},${homeVideoInfo})::before,
     ${enabled}[data-bc-page="home"] body :is(${homeShells},${homeVideoInfo})::after {
@@ -631,10 +815,9 @@
     ${enabled}[data-bc-page="home"] body .recommended-swipe {
       ${palette} --graph_bg_regular: var(--bc-glass-bg-content); --text4: var(--bc-secondary-color);
     }
-    /* Native category padding still reserves exactly the same space. The owned
-       material below follows the union of its real groups, not the full wrapper. */
+    /* The existing category bar owns its material and native padding. */
     ${enabled}[data-bc-page="home"] body :is(.bili-header__channel,.header-channel) {
-      background: transparent !important; border-color: transparent !important; border-radius: 0; box-shadow: none !important;
+      ${glassMaterial} border-radius: var(--bc-category-radius);
     }
     ${enabled}[data-bc-page="home"] body :is(.bili-header__channel,.header-channel) :is(.channel-link,.channel-link__more,.channel-item) {
       border-color: transparent !important; box-shadow: none !important;
@@ -657,9 +840,6 @@
     }
     ${enabled}[data-bc-page="home"] body :is(.bili-header__channel,.header-channel) .channel-items__right {
       border-left-color: var(--bc-border) !important;
-    }
-    ${enabled}[data-bc-page="home"] :is(.bc-theme-surface-glass,#bc-theme-channel-glass)[data-bc-surface-kind="categories"] {
-      ${material('light')}
     }
     ${enabled}[data-bc-page="home"] body .recommended-swipe .carousel-footer {
       background: var(--bc-glass-bg-content) !important; color: var(--bc-foreground, var(--bc-text-color)); box-shadow: none;
@@ -691,7 +871,7 @@
       ${enabled} body :where(.channel-link,.channel-item,.nav-search-form) { transition: background-color .14s ease, border-color .14s ease; }
     }
     @media (prefers-reduced-motion: reduce) { ${enabled} body :where(.channel-link,.channel-item,.nav-search-form) { transition: none; } }
-  ` + watchCSS + watchLayoutCSS;
+  ` + watchCSS + watchLayoutCSS + spaceCSS + spaceLayoutCSS + messageCSS + nativeGlassCSS;
   async function sampleBackdrop(source) {
     try {
       const image = typeof source === "string" ? new Image() : source;
@@ -718,6 +898,14 @@
       color: var(--bc-foreground, var(--bc-text-color)) !important; background-color: transparent !important;
     }
     :is(#comment-text, .rich-text, .text, .user-name) { color: var(--bc-foreground, var(--bc-text-color)) !important; text-shadow: var(--bc-text-shadow); }
+    /* Frost the actual block list inside the shadow tree. Floating editors
+       retain their native containing block instead of inheriting host frost. */
+    :host(bili-comments) { background: transparent !important; box-shadow: none !important; }
+    :host(bili-comments) :is(#contents,#feed,#header) { background: var(--bc-glass-bg-content) !important; }
+    :host(bili-comments):host-context(html[data-bc-material="glass"]) :is(#contents,#feed,#header) {
+      backdrop-filter: var(--bc-glass-filter-content); -webkit-backdrop-filter: var(--bc-glass-filter-content);
+    }
+    :host(bili-comments) #header:has(> bili-comments-header-renderer) { backdrop-filter: none; -webkit-backdrop-filter: none; }
     /* Paint the real block list, not inline/virtualized thread hosts. Keep the
        outer host clear so the list and header each receive exactly one tint. */
     :host(bili-comments):host-context(html[data-bc-enabled="true"][data-bc-page="video"]) {
@@ -788,6 +976,6 @@
       --bg1: var(--bc-glass-fallback-bg); background: var(--bc-glass-fallback-bg) !important;
     }
   `;
-  globalThis.BiliThemePage = Object.freeze({ profiles, classify, css, shadowCSS, glassMaterial, navigationCSS, sampleBackdrop,surfaceGroups,submenuSurfaces,homeVideoInfo,homeVideoCover,homeCardLayoutCSS,homeCardSpacingCSS,homeCarouselCSS,watchLayoutCSS,
+  globalThis.BiliThemePage = Object.freeze({ profiles, classify, css, shadowCSS, glassMaterial, navigationCSS, sampleBackdrop,surfaceGroups,submenuSurfaces,homeVideoInfo,homeVideoCover,homeCardLayoutCSS,homeCardSpacingCSS,homeCarouselCSS,watchLayoutCSS,spaceLayoutCSS,nativeGlassCSS,
     watchCommentGlass,layoutSelector: Object.values(profiles).map((p) => p.layout).filter(Boolean).join(", ") });
 })();

@@ -1,5 +1,5 @@
 ﻿import assert from 'node:assert/strict';
-import { measureNativeLayout as measure,compare,settle,noFilters } from './layout-parity.mjs';
+import { measureNativeLayout as measure,compare,settle,noFilters,glassFilter } from './layout-parity.mjs';
 
 export async function runReferenceChecks({cdp,base,until}) {
   const page=await cdp.page(`${base}/minimalist.html`);
@@ -33,8 +33,8 @@ export async function runReferenceChecks({cdp,base,until}) {
   assert.equal(await page.evaluate('document.documentElement.style.getPropertyValue("--bc-text-color")'),'#ffffff');
   assert.equal(await css('#normal h3 a','color'),'rgb(255, 255, 255)','light wallpaper strengthens tint and retains white foreground');
   await patch({textColor:'#232638'});
-  assert.match(await css('#bc-theme-header-glass','backdropFilter'),/blur\(15px\).*saturate/);
-  assert.equal(await css('#normal .bili-video-card__info','backdropFilter'),'none');
+  assert.match(await glassFilter(page,'.bili-header__bar'),/blur\(15px\).*saturate/);
+  assert.match(await css('#normal .bili-video-card__info','backdropFilter'),/blur\(/);
   assert.equal(await css('#normal .bili-video-card__info','backgroundImage'),'none');
   assert.equal(await page.evaluate('originalCards.every(n=>n.isConnected&&document.getElementById(n.id)===n)'),true);
   await page.evaluate(`document.querySelector('#logo').click();document.querySelector('#normal h3 a').click();document.querySelector('#avatar').click();document.querySelector('#search').dispatchEvent(new Event('input'));`);

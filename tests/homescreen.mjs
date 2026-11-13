@@ -54,22 +54,22 @@ export async function runHomescreenChecks({cdp,base,until,screenshots,mode}) {
   assert.equal(await css('#cat-channelTech','borderTopColor'),'rgba(0, 0, 0, 0)','native category specificity cannot restore boxed tabs');
   assert.equal(await css('#cat-channelTech','borderTopWidth'),'1px','native border width is retained');
   assert.equal(await css('#cat-channelTech','boxShadow'),'none');
-  assert.equal(await css('.bili-header__channel','backgroundColor'),'rgba(0, 0, 0, 0)');
-  assert.equal(await css('.bili-header__channel','boxShadow'),'none');
-  await until(page,'document.querySelector("[data-bc-surface-kind=categories]") !== null');
+  assert.notEqual(await css('.bili-header__channel','backgroundColor'),'rgba(0, 0, 0, 0)');
+  assert.notEqual(await css('.bili-header__channel','boxShadow'),'none');
+  await until(page,'document.querySelector(".bili-header__channel") !== null');
   assert.equal(await page.evaluate(`(()=>{
     const outer=document.querySelector('.bili-header__channel').getBoundingClientRect();
-    const paint=document.querySelector('[data-bc-surface-kind=categories]').getBoundingClientRect();
+    const paint=document.querySelector('.bili-header__channel').getBoundingClientRect();
     const groups=[...document.querySelectorAll('.channel-icons,.channel-items__left,.channel-items__right')].map(n=>n.getBoundingClientRect());
-    return paint.left>outer.left && paint.top>outer.top && paint.right<outer.right && paint.bottom<outer.bottom &&
+    return paint.left===outer.left && paint.top===outer.top && paint.right===outer.right && paint.bottom===outer.bottom &&
       groups.every(r=>r.left>=paint.left-.1 && r.right<=paint.right+.1 && r.top>=paint.top-.1 && r.bottom<=paint.bottom+.1);
   })()`),true,'category frost contains the real navigation groups and excludes native outer padding');
   assert.equal(await css('#normal','backgroundColor'),'rgba(0, 0, 0, 0)');
   assert.equal(await css('#normal > .bili-video-card__wrap','backgroundColor'),'rgba(0, 0, 0, 0)');
-  await until(page,'document.querySelector("[data-bc-surface-kind=video-info]") !== null');
-  assert.notEqual(await css('[data-bc-surface-kind=video-info]','backgroundColor'),'rgba(0, 0, 0, 0)');
-  assert.equal(await css('#normal .bili-video-card__info','backgroundColor'),'rgba(0, 0, 0, 0)');
-  assert.equal(await css('#normal .bili-video-card__info','boxShadow'),'none');
+  await until(page,'document.querySelector(":is(.bili-video-card__info,.bili-video-card__skeleton--info,.bili-live-card__info,.bili-live-card__skeleton--info,.video-card__info,.floor-card-inner > .info-container)") !== null');
+  assert.notEqual(await css(':is(.bili-video-card__info,.bili-video-card__skeleton--info,.bili-live-card__info,.bili-live-card__skeleton--info,.video-card__info,.floor-card-inner > .info-container)','backgroundColor'),'rgba(0, 0, 0, 0)');
+  assert.notEqual(await css('#normal .bili-video-card__info','backgroundColor'),'rgba(0, 0, 0, 0)');
+  assert.notEqual(await css('#normal .bili-video-card__info','boxShadow'),'none');
   for(const selector of ['#normal img','#normal picture','#normal']) {
     assert.equal(await css(selector,'filter'),'none');assert.equal(await css(selector,'backdropFilter'),'none');
   }

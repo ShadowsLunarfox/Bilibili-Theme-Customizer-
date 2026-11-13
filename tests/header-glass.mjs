@@ -44,20 +44,20 @@ export async function runHeaderGlassChecks({ cdp, until, html, snapshot }) {
     await cdp.send("Log.enable", {}, page.sessionId);
     await cdp.send("Fetch.enable", { patterns: [{ urlPattern: "*" }] }, page.sessionId);
     await page.navigate("https://www.bilibili.com/");
-    await until(page, 'document.querySelector("#bc-theme-header-glass")?.style.display === "block"');
+    await until(page, 'getComputedStyle(document.querySelector(".bili-header__bar"),"::before").backdropFilter.includes("blur(")');
     await page.evaluate(`(() => {
       const channel = document.createElement('div');
       channel.className = 'header-channel';
       document.body.append(channel);
     })()`);
-    await until(page, 'document.querySelector("#bc-theme-channel-glass")?.style.display === "block"');
+    await until(page, 'getComputedStyle(document.querySelector(".header-channel")).backdropFilter.includes("blur(")');
     await page.evaluate(`(() => {
       const image = document.createElement('div');
       image.id = 'native-mixed-image';
       image.style.cssText = 'width:10px;height:10px;background-image:url(http://i0.hdslb.com/bfs/manga-static/header-warning.png)';
       document.querySelector('.v-popover-content').append(image);
     })()`);
-    await until(page, 'document.querySelector("#native-mixed-image") !== null && document.querySelectorAll(".bc-theme-popover-glass").length === 2');
+    await until(page, 'document.querySelector("#native-mixed-image") !== null && getComputedStyle(document.querySelector(".v-popover-content"),"::before").backdropFilter.includes("blur(")');
     await page.evaluate(`(() => {
       const panel = document.querySelector('.nav-search-panel');
       const siteResizeObserver = new ResizeObserver(() => {
@@ -67,7 +67,7 @@ export async function runHeaderGlassChecks({ cdp, until, html, snapshot }) {
       });
       siteResizeObserver.observe(panel);
     })()`);
-    await until(page, '[...document.querySelectorAll(".bc-theme-popover-glass")].some(glass => Math.abs(parseFloat(glass.style.left) - document.querySelector(".nav-search-panel").getBoundingClientRect().left) < 1)');
+    await until(page, 'document.querySelector(".nav-search-panel").style.left === "215px"');
     // Give Log.entryAdded time to arrive after the image was requested.
     await new Promise((resolve) => setTimeout(resolve, 150));
     assert.equal(failures.length, 0);

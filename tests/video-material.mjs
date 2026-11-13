@@ -6,7 +6,7 @@ import {settle} from './layout-parity.mjs';
 async function state(page) {
   return page.evaluate(`(()=>{
     const box=n=>{const r=n.getBoundingClientRect();return {left:r.left,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};
-    const layers=[...document.querySelectorAll('[data-bc-surface-kind="video-info"]')];
+    const layers=[...document.querySelectorAll(':is(.bili-video-card__info,.bili-video-card__skeleton--info,.bili-live-card__info,.bili-live-card__skeleton--info,.video-card__info,.floor-card-inner > .info-container)')];
     const cards=[...document.querySelectorAll('.bili-video-card__wrap > .bili-video-card__info')].filter(n=>{const r=n.getBoundingClientRect();return r.width&&r.top>0&&r.bottom<innerHeight;}).slice(0,6).map(info=>{
       const r=box(info),matches=layers.filter(n=>{const p=n.getBoundingClientRect();return Math.abs(p.left-r.left)<1&&Math.abs(p.bottom-r.bottom)<1;});
       const s=matches[0]?getComputedStyle(matches[0]):null,meta=info.querySelector('.bili-video-card__info--bottom');

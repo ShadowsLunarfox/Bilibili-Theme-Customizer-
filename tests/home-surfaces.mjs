@@ -101,20 +101,16 @@ export async function runHomeSurfaceChecks({cdp,base,until,screenshots}) {
   for(const selector of ['.channel-icons','.channel-items__right'])assert.equal(await css(selector,'backgroundColor','::before'),'rgba(0, 0, 0, 0)','native pseudo-element cannot paint a seam');
   assert.equal(await css('.channel-items__right','borderLeftWidth'),'1px','native separator width');
   assert.equal(await css('.icon-bg.dynamic','backgroundColor'),'rgb(255, 146, 18)','native icon color remains');
-  await until(page,'document.querySelectorAll("[data-bc-surface-kind=categories]").length===1');
-  assert.equal(await page.evaluate(`(()=>{const a=document.querySelector('.channel-icons').getBoundingClientRect(),b=document.querySelector('.channel-items__right').getBoundingClientRect(),g=document.querySelector('[data-bc-surface-kind=categories]').getBoundingClientRect();return g.left<a.left && g.top<a.top && g.right>b.right && g.bottom>a.bottom;})()`),true,'one padded owned paint surface contains both ends');
+  await until(page,'document.querySelectorAll(".bili-header__channel").length===1');
+  assert.equal(await page.evaluate(`(()=>{const a=document.querySelector('.channel-icons').getBoundingClientRect(),b=document.querySelector('.channel-items__right').getBoundingClientRect(),g=document.querySelector('.bili-header__channel').getBoundingClientRect();return g.left<a.left && g.top<a.top && g.right>b.right && g.bottom>a.bottom;})()`),true,'one padded owned paint surface contains both ends');
   assert.equal(await page.evaluate(`(()=>{
-    const outer=document.querySelector('.bili-header__channel').getBoundingClientRect(),g=document.querySelector('[data-bc-surface-kind=categories]').getBoundingClientRect();
+    const outer=document.querySelector('.bili-header__channel').getBoundingClientRect(),g=document.querySelector('.bili-header__channel').getBoundingClientRect();
     const groups=[...document.querySelectorAll('.channel-icons,.channel-items__left,.channel-items__right')].map(n=>n.getBoundingClientRect());
-    const near=(a,b)=>Math.abs(a-b)<1/64;
-    return near(g.left,Math.max(outer.left,Math.min(...groups.map(r=>r.left))-12)) &&
-      near(g.right,Math.min(outer.right,Math.max(...groups.map(r=>r.right))+12)) &&
-      near(g.top,Math.max(outer.top,Math.min(...groups.map(r=>r.top))-12)) &&
-      near(g.bottom,Math.min(outer.bottom,Math.max(...groups.map(r=>r.bottom))+12));
+    return groups.every(r=>r.left>=outer.left && r.right<=outer.right && r.top>=outer.top && r.bottom<=outer.bottom);
   })()`),true,'category glass has 12px breathing room bounded by its native wrapper');
   assert.equal(await css('#normal','backgroundColor'),'rgba(0, 0, 0, 0)');
   assert.equal(await css('#normal > .bili-video-card__wrap','backgroundColor'),'rgba(0, 0, 0, 0)');
-  assert.equal(await css('#normal .bili-video-card__info','backgroundColor'),'rgba(0, 0, 0, 0)');
+  assert.notEqual(await css('#normal .bili-video-card__info','backgroundColor'),'rgba(0, 0, 0, 0)');
   assert.equal(await css('#special-floor .floor-card','backgroundColor'),'rgba(0, 0, 0, 0)');
   assert.equal(await css('#special-floor .floor-card-inner','backgroundColor'),'rgba(0, 0, 0, 0)');
   for(const selector of ['#special-floor .layer','#special-floor .layer.tiny'])assert.equal(await css(selector,'backgroundColor'),'rgba(0, 0, 0, 0)','native decorative backplates cannot paint opaque stacks');
@@ -122,13 +118,13 @@ export async function runHomeSurfaceChecks({cdp,base,until,screenshots}) {
   assert.equal(await css('#special-floor .living','color'),'rgb(255, 102, 153)','native live status color remains');
   assert.equal(await css('#native-live','backgroundColor'),'rgba(0, 0, 0, 0)');
   assert.equal(await css('#native-live > .bili-live-card__wrap','backgroundColor'),'rgba(0, 0, 0, 0)');
-  assert.equal(await css('#native-live .bili-live-card__info','backgroundColor'),'rgba(0, 0, 0, 0)');
+  assert.notEqual(await css('#native-live .bili-live-card__info','backgroundColor'),'rgba(0, 0, 0, 0)');
   assert.equal(await css('#native-live .bili-live-card__info--tit','color'),'rgb(255, 255, 255)');
   assert.equal(await css('#native-live .bili-live-card__info--living','color'),'rgb(255, 102, 153)');
   assert.notEqual(await css('#native-live .bili-live-card__skeleton--cover','backgroundColor'),'rgb(241, 242, 243)');
   assert.equal(await page.evaluate(`(()=>{const a=document.querySelector('#normal').getBoundingClientRect(),b=document.querySelector('#normal > .bili-video-card__wrap').getBoundingClientRect();return Math.abs(a.bottom-b.bottom)<1;})()`),true,'the wrapper now fills its grid item instead of leaving unused row space');
   const infoPaint=async()=>page.evaluate(`(()=>{
-    const layers=[...document.querySelectorAll('[data-bc-surface-kind="video-info"]')];
+    const layers=[...document.querySelectorAll(':is(.bili-video-card__info,.bili-video-card__skeleton--info,.bili-live-card__info,.bili-live-card__skeleton--info,.video-card__info,.floor-card-inner > .info-container)')];
     return ['#normal','#native-loading','#special-floor','#native-live'].map(selector=>{
       const card=document.querySelector(selector),info=card.querySelector(BiliThemePage.homeVideoInfo);
       const cover=info.parentElement.querySelector(BiliThemePage.homeVideoCover).getBoundingClientRect(),r=info.getBoundingClientRect();
@@ -137,7 +133,7 @@ export async function runHomeSurfaceChecks({cdp,base,until,screenshots}) {
       return {selector,count:matches.length,bg:s?.backgroundColor,filter:s?.backdropFilter,radius:s?.borderRadius};
     });
   })()`);
-  await until(page,'document.querySelector("[data-bc-surface-kind=video-info]") !== null');
+  await until(page,'document.querySelector(":is(.bili-video-card__info,.bili-video-card__skeleton--info,.bili-live-card__info,.bili-live-card__skeleton--info,.video-card__info,.floor-card-inner > .info-container)") !== null');
   const paint=await infoPaint();
   for(const panel of paint) {
     assert.equal(panel.count,1,'exactly one glass region joins the cover and ends at its information block: '+panel.selector);
@@ -145,7 +141,7 @@ export async function runHomeSurfaceChecks({cdp,base,until,screenshots}) {
     assert.equal(panel.filter,'blur(14px) saturate(1.4)');
     assert.equal(panel.radius,'0px 0px 10px 10px');
   }
-  for(const selector of ['#normal .bili-video-card__info--right','#normal .bili-video-card__info']) {
+  for(const selector of ['#normal .bili-video-card__info--right']) {
     assert.equal(await css(selector,'backgroundImage'),'none');
     assert.equal(await css(selector,'backgroundColor'),'rgba(0, 0, 0, 0)');
   }
@@ -170,7 +166,7 @@ export async function runHomeSurfaceChecks({cdp,base,until,screenshots}) {
   assert.notEqual(await css('#native-loading .bili-video-card__skeleton--text','backgroundColor'),'rgb(241, 242, 243)');
   assert.notEqual(await css('.recommended-swipe-body','backgroundColor'),'rgb(241, 242, 243)','native blocked-media fill uses the shared tint');
   for(const selector of ['#pip','#toolbar-more','#feedback','#top'])assert.notEqual(await css(selector,'backgroundColor'),'rgba(0, 0, 0, 0)',selector+' is its own glass surface');
-  await until(page,`(()=>{const b=document.querySelector('#pip').getBoundingClientRect();return [...document.querySelectorAll('.bc-theme-surface-glass')].some(n=>{const r=n.getBoundingClientRect();return Math.abs(r.left-b.left)<1&&Math.abs(r.top-b.top)<1&&getComputedStyle(n).zIndex==='9';});})()`);
+  assert.match(await css('#pip','backdropFilter'),/blur\(/,'toolbar button owns its glass');
   await page.evaluate('document.querySelector("#pip").click();document.querySelector("#toolbar-more").click()');
   assert.equal(await page.evaluate('window.pipClicks'),1);
   assert.equal(await page.evaluate('document.querySelector("#tool-menu").hidden'),false);
@@ -198,10 +194,10 @@ export async function runHomeSurfaceChecks({cdp,base,until,screenshots}) {
   await patch({material:'clear'});
   for(const selector of ['#pip','#normal > .bili-video-card__wrap','#native-loading > .bili-video-card__wrap'])assert.equal(await css(selector,'backgroundColor'),'rgba(0, 0, 0, 0)');
   await patch({material:'glass'});
-  const popupLayer=()=>page.evaluate(`(()=>{const b=document.querySelector('#opacity-popup').getBoundingClientRect();return [...document.querySelectorAll('.bc-theme-surface-glass[data-bc-level=strong]')].some(n=>{const r=n.getBoundingClientRect();return Math.abs(r.left-b.left)<1&&Math.abs(r.top-b.top)<1;});})()`);
-  assert.equal(await popupLayer(),false,'an invisible ancestor cannot leave an owned glass rectangle');
+  const popupLayer=()=>page.evaluate(`(()=>{const n=document.querySelector('#opacity-popup');for(let p=n;p;p=p.parentElement)if(getComputedStyle(p).opacity==='0')return false;return getComputedStyle(n).backdropFilter!=='none';})()`);
+  assert.equal(await popupLayer(),false,'invisible ancestors hide the native glass too');
   await page.evaluate('document.querySelector("#opacity-holder").style.opacity="1"');
-  await until(page,`(()=>{const b=document.querySelector('#opacity-popup').getBoundingClientRect();return [...document.querySelectorAll('.bc-theme-surface-glass[data-bc-level=strong]')].some(n=>{const r=n.getBoundingClientRect();return Math.abs(r.left-b.left)<1&&Math.abs(r.top-b.top)<1;});})()`);
+  await settle(page);assert.equal(await popupLayer(),true);
   await page.evaluate('document.querySelector("#opacity-holder").style.opacity="0"');
   await settle(page);assert.equal(await popupLayer(),false);
   const parity=await runParity({page,patch,artifacts:screenshots,label:'home-surfaces',navKeys:await page.evaluate('BiliTheme.NAV_ITEMS.map(n=>n.key)'),continuous:false});

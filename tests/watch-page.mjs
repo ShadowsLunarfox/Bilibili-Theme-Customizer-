@@ -44,7 +44,7 @@ async function snapshot(page){return page.evaluate(`(()=>{
   const box=n=>{const r=n.getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height};};
   const css=(s,p)=>getComputedStyle(document.querySelector(s))[p],video=document.querySelector('#watch-video');
   const protect=['#watch-video','.bpx-player-video-wrap','.bpx-player-control-wrap','.bpx-player-progress','#play','#volume','#fullscreen'].map(s=>({selector:s,box:box(document.querySelector(s)),style:Object.fromEntries(['filter','backdropFilter','backgroundColor','color','position','overflow','borderRadius'].map(p=>[p,css(s,p)]))}));
-  return {player:protect,columns:css('.video-container','gridTemplateColumns'),gap:css('.video-container','gap'),playing:!video.paused,rootBackgrounds:['.right-container','bili-comments'].map(s=>s==='bili-comments'?getComputedStyle(document.querySelector(s).shadowRoot.querySelector('#contents')).backgroundColor:css(s,'backgroundColor')),surfaces:[...document.querySelectorAll('.bc-theme-surface-glass')].map(box)};
+  return {player:protect,columns:css('.video-container','gridTemplateColumns'),gap:css('.video-container','gap'),playing:!video.paused,rootBackgrounds:['.right-container','bili-comments'].map(s=>s==='bili-comments'?getComputedStyle(document.querySelector(s).shadowRoot.querySelector('#contents')).backgroundColor:css(s,'backgroundColor')),overlayCount:document.querySelectorAll('.bc-theme-surface-glass').length};
 })()`);}
 
 export async function runWatchPageChecks({cdp,base,until,screenshots,baseline=false}){
@@ -80,7 +80,7 @@ export async function runWatchPageChecks({cdp,base,until,screenshots,baseline=fa
   assert.equal(shadows.threadBackground,'rgba(0, 0, 0, 0)','threads share the block list backing without stacked tints');assert.equal(shadows.threadFilter,'none','comment column has no giant blur');assert.equal(shadows.badge,'rgb(251, 114, 153)');assert.equal(shadows.image,'none');assert.equal(shadows.focus,true);assert.equal(shadows.sticky,'sticky');
   for(const width of [1024,1280,1440,1652,1920,2560]){await page.resize(width,1100);await settle(page);await settle(page);assert.equal(await css('.video-info-container','paddingLeft'),'20px');assert.equal(await css('.right-container','backgroundColor'),'rgba(0, 0, 0, 0)');}
   await page.resize(1652,1100);
-  for(const y of [0,650,1400,2300]){await page.evaluate('window.scrollTo(0,'+y+')');await settle(page);await settle(page);const s=await snapshot(page);assert.ok(s.surfaces.every(r=>r.height<=1100),'no full-column glass sheets');await capture('watch-scroll-'+y);}
+  for(const y of [0,650,1400,2300]){await page.evaluate('window.scrollTo(0,'+y+')');await settle(page);await settle(page);const s=await snapshot(page);assert.equal(s.overlayCount,0,'no dynamically positioned glass sheets');await capture('watch-scroll-'+y);}
   await cdp.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-transparency',value:'reduce'}]},page.sessionId);await settle(page);
   assert.match(await css('.video-page-card-small','backgroundColor'),/0\.94\)/,'reduced transparency uses the shared fallback');
   await cdp.send('Emulation.setEmulatedMedia',{features:[]},page.sessionId);await settle(page);

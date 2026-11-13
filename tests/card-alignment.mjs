@@ -68,7 +68,7 @@ async function measurements(page,{legacyMargins=false}={}) {
         spacing:{padding:[style.paddingTop,style.paddingRight,style.paddingBottom,style.paddingLeft],marginTop:style.marginTop}});
     }
     const delta=xs=>xs.length?Math.max(...xs)-Math.min(...xs):0;
-    return {rows,viewportHeight:innerHeight,paint:[...document.querySelectorAll('[data-bc-surface-kind="video-info"]')].map(record),columns:gs.gridTemplateColumns,gap:gs.gap,gridRows:gs.gridTemplateRows,carousel:record(grid.querySelector('.recommended-swipe')),
+    return {rows,viewportHeight:innerHeight,paint:[...document.querySelectorAll(':is(.bili-video-card__info,.bili-video-card__skeleton--info,.bili-live-card__info,.bili-live-card__skeleton--info,.video-card__info,.floor-card-inner > .info-container)')].map(record),columns:gs.gridTemplateColumns,gap:gs.gap,gridRows:gs.gridTemplateRows,carousel:record(grid.querySelector('.recommended-swipe')),
       span:getComputedStyle(grid.querySelector('.recommended-swipe')).gridRow,
       normalDelta:Math.max(...rows.map(r=>delta(r.cards.filter(c=>c.normal&&c.metadata).map(c=>c.info.bottom)))),
       mixedDelta:Math.max(...rows.map(r=>delta(r.cards.map(c=>c.info.bottom)))),

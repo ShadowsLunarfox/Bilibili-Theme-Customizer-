@@ -37,53 +37,12 @@ export async function runScrollingChecks({cdp,base,until,screenshots,baseline=fa
     assert.equal(await page.evaluate('getComputedStyle(document.querySelector("#native-live .bili-live-card__skeleton")).display'),'flex','native loading skeleton remains visible');
     await page.evaluate('document.querySelector("#native-live .bili-live-card__wrap").classList.remove("hide");document.querySelector("#native-live .bili-live-card__skeleton").classList.add("hide")');await settle(page);await settle(page);
   }
-  const report=await page.evaluate(`(async()=>{
-    let maxDrift=0;const frames=[];let last=performance.now();
-    const inspect=()=>{const counting=countScrollWork;countScrollWork=false;
-      const layers=[...document.querySelectorAll('[data-bc-surface-kind="video-info"]')];
-      for(const info of [...document.querySelectorAll('.bili-video-card__wrap > .bili-video-card__info')].slice(0,5)){
-        const r=info.getBoundingClientRect();if(r.bottom<=0||r.top>=innerHeight)continue;
-        const layer=layers.find(n=>Math.abs(n.getBoundingClientRect().left-r.left)<1&&Math.abs(n.getBoundingClientRect().width-r.width)<1&&Math.abs(n.getBoundingClientRect().bottom-r.bottom)<100);
-        if(layer)maxDrift=Math.max(maxDrift,Math.abs(layer.getBoundingClientRect().bottom-r.bottom));
-      }countScrollWork=counting;
-    };
-    const listener=()=>inspect();document.addEventListener('scroll',listener,{capture:true,passive:true});
-    countScrollWork=true;
-    for(let i=0;i<48;i++){
-      window.scrollTo(0,i*2);document.querySelector('#normal .bili-video-card__stats').style.opacity=i%2?'.99':'1';
-      await new Promise(r=>requestAnimationFrame(r));const now=performance.now();frames.push(now-last);last=now;
-    }
-    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));countScrollWork=false;
-    document.removeEventListener('scroll',listener,true);
-    return {...scrollCounts,maxDrift,frames};
-  })()`);
-  if(!baseline){assert.ok(report.maxDrift<=1,'glass follows cards during scroll events: '+report.maxDrift);assert.ok(report.cardRects<200,'small scrolls/preview opacity changes must not rescan all feed cards: '+report.cardRects);assert.equal(report.feedWrites,0,'scrolling does not rewrite card margins');}
-  if(!baseline){
-    const wrapperWork=await page.evaluate(`(async()=>{
-      scrollCounts.cardRects=0;countScrollWork=true;
-      for(let i=0;i<24;i++){document.querySelector('#normal .bili-video-card__wrap').style.opacity=i%2?'.99':'1';await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));}
-      countScrollWork=false;return scrollCounts.cardRects;
-    })()`);
-    assert.ok(wrapperWork<120,'one card state change only measures that card: '+wrapperWork);
-    await page.evaluate('document.querySelector("#normal .bili-video-card__wrap").style.marginTop="13px"');await settle(page);await settle(page);
-    assert.equal(await page.evaluate('getComputedStyle(document.querySelector("#normal .bili-video-card__wrap")).marginTop'),'0px','late wrapper margins still repair');
-    await page.evaluate('document.querySelector("#normal .bili-video-card__wrap").style.removeProperty("margin-top")');await settle(page);
-    for(const y of [450,900,1800,3200,0]){
-      await page.evaluate('window.scrollTo(0,'+y+')');await settle(page);await settle(page);
-      const missing=await page.evaluate(`(()=>{
-        const layers=[...document.querySelectorAll('[data-bc-surface-kind="video-info"]')].map(n=>n.getBoundingClientRect());
-        return [...document.querySelectorAll('.bili-video-card__wrap > .bili-video-card__info')].filter(n=>{
-          const r=n.getBoundingClientRect();return r.width&&r.bottom>0&&r.top<innerHeight&&!layers.some(p=>Math.abs(p.left-r.left)<1&&Math.abs(p.right-r.right)<1&&Math.abs(p.bottom-r.bottom)<1);
-        }).length;
-      })()`);
-      assert.equal(missing,0,'newly visible rows have aligned glass at scroll '+y);
-      assert.ok(await page.evaluate('document.querySelectorAll(".bc-theme-surface-glass").length')<80,'offscreen cards do not retain blur layers');
-    }
-    await page.evaluate('document.querySelector(".bili-header__banner").style.height="300px"');await settle(page);await settle(page);
-    assert.equal(await page.evaluate(`(()=>{const r=document.querySelector('#normal .bili-video-card__info').getBoundingClientRect();return [...document.querySelectorAll('[data-bc-surface-kind="video-info"]')].some(n=>{const p=n.getBoundingClientRect();return Math.abs(p.left-r.left)<1&&Math.abs(p.bottom-r.bottom)<1;});})()`),true,'document layout shifts refresh cached card positions');
-    await page.evaluate('document.querySelector(".bili-header__banner").style.removeProperty("height")');await settle(page);await settle(page);
-  }
+  const report=await page.evaluate(`(async()=>{countScrollWork=true;for(let i=0;i<48;i++){window.scrollTo(0,i*2);document.querySelector('#normal .bili-video-card__stats').style.opacity=i%2?'.99':'1';await new Promise(r=>requestAnimationFrame(r));}await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));countScrollWork=false;return {...scrollCounts};})()`);
+  assert.equal(report.cardRects,0,'scroll/preview changes do not measure glass rectangles');assert.equal(report.writes,0,'scrolling does not write glass styles');assert.equal(report.feedWrites,0,'scrolling does not rewrite card margins');
+  await page.evaluate('document.querySelector("#normal .bili-video-card__wrap").style.marginTop="13px"');await settle(page);await settle(page);assert.equal(await page.evaluate('getComputedStyle(document.querySelector("#normal .bili-video-card__wrap")).marginTop'),'0px','independent feed spacing repair still works');
+  await page.evaluate('document.querySelector("#normal .bili-video-card__wrap").style.removeProperty("margin-top")');
+  for(const y of [450,900,1800,3200,0]){await page.evaluate('window.scrollTo(0,'+y+')');await settle(page);const result=await page.evaluate(`(()=>{const visible=[...document.querySelectorAll(BiliThemePage.homeVideoInfo)].filter(n=>{const r=n.getBoundingClientRect();return r.width&&r.bottom>0&&r.top<innerHeight&&getComputedStyle(n).visibility==='visible';});return {missing:visible.filter(n=>getComputedStyle(n).backdropFilter==='none'||getComputedStyle(n).backgroundColor==='rgba(0, 0, 0, 0)').length,overlays:document.querySelectorAll('#bc-theme-header-glass,#bc-theme-channel-glass,.bc-theme-surface-glass,.bc-theme-popover-glass').length};})()`);assert.equal(result.missing,0,'visible native captions own their glass at '+y);assert.equal(result.overlays,0);}
   if(screenshots){await mkdir(screenshots,{recursive:true});await writeFile(join(screenshots,baseline?'scroll-before.json':'scroll-after.json'),JSON.stringify({live,...report},null,2));await writeFile(join(screenshots,baseline?'scroll-before.png':'scroll-after.png'),await page.screenshot());}
-  console.log('  '+(baseline?'BASELINE':'PASS')+' scrolling: '+report.cardRects+' card rect reads, '+report.styles+' style reads, '+report.writes+' glass writes, '+report.feedWrites+' margin writes, '+report.maxDrift+'px drift');
+  console.log('  '+(baseline?'BASELINE':'PASS')+' scrolling: '+report.cardRects+' card rect reads, '+report.styles+' style reads, '+report.writes+' glass writes, '+report.feedWrites+' margin writes, '+'native CSS, zero overlays');
   await page.close();
 }

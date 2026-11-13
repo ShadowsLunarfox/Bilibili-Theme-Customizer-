@@ -34,6 +34,7 @@ export async function runCompatibilityMatrix({ cdp, base, until, mp4, screenshot
           await chrome.runtime.sendMessage({type:'BC_THEME/BACKGROUND',payload:backgrounds[b]?{dataUrl:backgrounds[b],name:'matrix'}:null});
           await frame();
           const label='${name}/'+material+'/'+coverage+'/'+b;
+          assert(!document.querySelector('#bc-theme-header-glass,#bc-theme-channel-glass,.bc-theme-popover-glass,.bc-theme-surface-glass'),label+': no dynamic glass overlays');
           assert(document.querySelectorAll('style[data-bc-owned="style"]').length===1,label+': duplicate CSS');
           assert(document.querySelectorAll('#bc-theme-wallpaper').length===1,label+': duplicate wallpaper');
           const primary=document.querySelector('#primary');
@@ -43,7 +44,7 @@ export async function runCompatibilityMatrix({ cdp, base, until, mp4, screenshot
             assert(ratio(rgb(getComputedStyle(primary).color),edge)>=4.5-0.01,label+': primary text edge contrast');
             assert(ratio(rgb(get('#secondary','color')),edge)>=4.5-0.01,label+': secondary text edge contrast');
             assert(getComputedStyle(primary).textShadow!=='none',label+': localized text contrast');
-            assert(get('#readable-card','backdropFilter')==='none',label+': no content blur');
+            assert(get('#thumbnail','backdropFilter')==='none',label+': no media blur');
             assert(get('#status','backgroundColor')==='rgb(230, 30, 50)',label+': badge background');
             assert(get('#status','color')==='rgb(255, 255, 255)',label+': badge text');
             assert(get('#status-svg','color')==='rgb(230, 30, 50)',label+': SVG status');

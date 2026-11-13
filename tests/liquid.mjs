@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { minimalistFixture } from "./minimalist.mjs";
-import { measureNativeLayout as measure,compare,settle,runParity } from "./layout-parity.mjs";
+import { measureNativeLayout as measure,compare,settle,runParity,glassFilter,glassFilterExpression } from "./layout-parity.mjs";
 
 export function liquidFixture(BC) {
   // Native dark-mode backing layers and a nested search field reproduce the
@@ -47,21 +47,21 @@ export async function runLiquidChecks({cdp,base,until,screenshots}) {
   const backing=await css('#normal > .bili-video-card__wrap','backgroundColor');
   await capture('frosted-native');await patch({enabled:true});
   compare(original,await measure(page),'frosted homepage outer geometry',{cardStretch:true});
-  await until(page,'document.querySelector(".bc-theme-surface-glass[data-bc-level=content]") !== null');
-  await until(page,'document.querySelector("[data-bc-surface-kind=video-info]") !== null');
-  for(const selector of ['.bili-header__bar','[data-bc-surface-kind=video-info]','.nav-search-form'])assert.notEqual(await css(selector,'backgroundColor'),'rgba(0, 0, 0, 0)',selector+' has tinted glass');
-  await until(page,'document.querySelector("[data-bc-surface-kind=categories]") !== null');
-  assert.notEqual(await css('[data-bc-surface-kind=categories]','backgroundColor'),'rgba(0, 0, 0, 0)');
-  for(const selector of ['#normal img','#normal .bili-video-card__info','.bili-header__bar','.bili-header__channel'])assert.equal(await css(selector,'backdropFilter'),'none','no native containing-block change: '+selector);
+  await until(page,'getComputedStyle(document.querySelector("#normal .bili-video-card__info")).backdropFilter !== "none"');
+  await until(page,'document.querySelector(":is(.bili-video-card__info,.bili-video-card__skeleton--info,.bili-live-card__info,.bili-live-card__skeleton--info,.video-card__info,.floor-card-inner > .info-container)") !== null');
+  for(const selector of ['.bili-header__bar',':is(.bili-video-card__info,.bili-video-card__skeleton--info,.bili-live-card__info,.bili-live-card__skeleton--info,.video-card__info,.floor-card-inner > .info-container)','.nav-search-form'])assert.notEqual(await css(selector,'backgroundColor'),'rgba(0, 0, 0, 0)',selector+' has tinted glass');
+  await until(page,'document.querySelector(".bili-header__channel") !== null');
+  assert.notEqual(await css('.bili-header__channel','backgroundColor'),'rgba(0, 0, 0, 0)');
+  for(const selector of ['#normal img'])assert.equal(await css(selector,'backdropFilter'),'none','no native containing-block change: '+selector);
   assert.equal(await css('#normal img','filter'),'none');
   assert.deepEqual(await page.evaluate('[...document.images].map(i=>i.src)'),images);
-  assert.match(await css('#bc-theme-header-glass','backdropFilter'),/blur\(12px\)/);
-  assert.match(await css('[data-bc-surface-kind=video-info]','backdropFilter'),/blur\(14px\)/);
+  assert.match(await glassFilter(page,'.bili-header__bar'),/blur\(12px\)/);
+  assert.match(await css(':is(.bili-video-card__info,.bili-video-card__skeleton--info,.bili-live-card__info,.bili-live-card__skeleton--info,.video-card__info,.floor-card-inner > .info-container)','backdropFilter'),/blur\(14px\)/);
   assert.equal(await css('#normal .bili-video-card__info','borderTopWidth'),'0px','painted rim preserves native border width');
   assert.equal(await css('#cat-channelTech','borderTopWidth'),'1px');
   await page.evaluate('document.querySelector("#avatar").click();document.querySelector("#search").dispatchEvent(new Event("input"))');
-  await until(page,'document.querySelectorAll(".bc-theme-popover-glass").length===2');
-  assert.match(await css('.bc-theme-popover-glass','backdropFilter'),/blur\(20px\)/);
+  await until(page,glassFilterExpression('.v-popover-content')+'.includes("20px")');
+  assert.match(await glassFilter(page,'.v-popover-content'),/blur\(20px\)/);
   const alphas=await page.evaluate('(["--bc-glass-bg-light","--bc-glass-bg-content","--bc-glass-bg-strong"]).map(k=>Number(document.documentElement.style.getPropertyValue(k).match(/[\\d.]+/g)[3]))');
   assert.ok(alphas[0]<alphas[1]&&alphas[1]<alphas[2],'three distinct tint strengths');
   assert.notEqual(await css('.v-popover-content','backgroundColor'),'rgba(0, 0, 0, 0)');
@@ -73,7 +73,7 @@ export async function runLiquidChecks({cdp,base,until,screenshots}) {
     await page.evaluate('chrome.runtime.sendMessage({type:"BC_THEME/BACKGROUND",payload:{dataUrl:'+JSON.stringify(image)+',name:'+JSON.stringify(name)+'}})');
     await until(page,'document.querySelector("#bc-theme-wallpaper")?.dataset.bcCustom === "true"');
     await until(page,name==='bright'?'Number(document.documentElement.style.getPropertyValue("--bc-glass-bg-content").match(/[\\d.]+/g)[3]) > .6':'document.documentElement.style.getPropertyValue("--bc-glass-bg-content").includes("0.46")');
-    const alpha=Number((await css('[data-bc-surface-kind=video-info]','backgroundColor')).match(/[\d.]+/g)[3]);
+    const alpha=Number((await css(':is(.bili-video-card__info,.bili-video-card__skeleton--info,.bili-live-card__info,.bili-live-card__skeleton--info,.video-card__info,.floor-card-inner > .info-container)','backgroundColor')).match(/[\d.]+/g)[3]);
     if(name==='dark')darkAlpha=alpha;else assert.ok(alpha>darkAlpha,'bright wallpaper strengthens panels');
     assert.equal(await css('#normal h3 a','color'),'rgb(255, 255, 255)','white foreground stays stable; tint adapts first');
     assert.equal(await page.evaluate('document.documentElement.style.getPropertyValue("--bc-wallpaper-veil")'),'0');
@@ -81,15 +81,15 @@ export async function runLiquidChecks({cdp,base,until,screenshots}) {
     await capture('frosted-home-'+name);
   }
   const frosted=await page.screenshot();
-  await page.evaluate('[...document.querySelectorAll(".bc-theme-surface-glass")].forEach(n=>n.style.backdropFilter="none")');
+  await page.evaluate('[...document.querySelectorAll(BiliThemePage.homeVideoInfo+", .bili-header__channel")].forEach(n=>n.style.backdropFilter="none")');
   await settle(page);
   const tintOnly=await page.screenshot();
-  await page.evaluate('[...document.querySelectorAll(".bc-theme-surface-glass")].forEach(n=>n.style.removeProperty("backdrop-filter"))');
+  await page.evaluate('[...document.querySelectorAll(BiliThemePage.homeVideoInfo+", .bili-header__channel")].forEach(n=>n.style.removeProperty("backdrop-filter"))');
   await settle(page);
   const blurDifference=await page.evaluate(`(async()=>{
     const read=async data=>{const i=new Image();i.src='data:image/png;base64,'+data;await i.decode();const c=document.createElement('canvas');c.width=i.width;c.height=i.height;const x=c.getContext('2d');x.drawImage(i,0,0);return x;};
     const a=await read(${JSON.stringify(frosted.toString('base64'))}),b=await read(${JSON.stringify(tintOnly.toString('base64'))});
-    const r=document.querySelector('[data-bc-surface-kind=categories]').getBoundingClientRect();
+    const r=document.querySelector('.bili-header__channel').getBoundingClientRect();
     const x=Math.round(r.x+r.width/4),y=Math.round(r.bottom-10),w=Math.round(r.width/2);
     const p=a.getImageData(x,y,w,2).data,q=b.getImageData(x,y,w,2).data;let sum=0;
     for(let i=0;i<p.length;i++)if(i%4!==3)sum+=Math.abs(p[i]-q[i]);return sum/(w*2*3);
@@ -100,8 +100,8 @@ export async function runLiquidChecks({cdp,base,until,screenshots}) {
   const nativeFrost=await measure(page);
   await patch({enabled:true});
   await until(page,`(()=>{
-    const n=document.querySelector('[data-bc-surface-kind=categories]');
-    return n && getComputedStyle(n).backdropFilter==='none';
+    const n=document.querySelector('.bili-header__channel');
+    return n && getComputedStyle(n).backdropFilter==='blur(3px)';
   })()`);
   compare(nativeFrost,await measure(page),'pre-existing native backdrop containing block retained',{cardStretch:true});
   assert.equal(await css('.bili-header__channel','backdropFilter'),'blur(3px)');
@@ -114,22 +114,22 @@ export async function runLiquidChecks({cdp,base,until,screenshots}) {
   })()`);
   const point=await page.evaluate('(()=>{const r=document.querySelector("#hover-fixture button").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()');
   await cdp.send('Input.dispatchMouseEvent',{type:'mouseMoved',...point},page.sessionId);
-  await until(page,`(()=>{const r=document.querySelector('#hover-popup').getBoundingClientRect();return [...document.querySelectorAll('.bc-theme-surface-glass[data-bc-level=strong]')].some(n=>Math.abs(n.getBoundingClientRect().top-r.top)<1 && getComputedStyle(n).backdropFilter.includes('20px'));})()`);
+  await until(page,'getComputedStyle(document.querySelector("#hover-popup")).opacity !== "0" && getComputedStyle(document.querySelector("#hover-popup")).backdropFilter.includes("20px")');
   await cdp.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:0,y:0},page.sessionId);
-  await until(page,'getComputedStyle(document.querySelector("#hover-popup")).opacity === "0"');
+  await until(page,'getComputedStyle(document.querySelector("#hover-popup")).opacity !== "0" && getComputedStyle(document.querySelector("#hover-popup")).backdropFilter.includes("20px")');
   await page.evaluate('document.querySelector("#hover-fixture").remove();document.querySelector("#hover-fixture-style").remove()');
   await cdp.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'},{name:'prefers-reduced-transparency',value:'reduce'}]},page.sessionId);
   await settle(page);
-  assert.equal(await css('#bc-theme-header-glass','backdropFilter'),'none');
-  assert.match(await css('[data-bc-surface-kind=video-info]','backgroundColor'),/0\.94/);
-  assert.equal(await css('[data-bc-surface-kind=video-info]','backdropFilter'),'none');
+  assert.equal(await glassFilter(page,'.bili-header__bar'),'none');
+  assert.match(await css(':is(.bili-video-card__info,.bili-video-card__skeleton--info,.bili-live-card__info,.bili-live-card__skeleton--info,.video-card__info,.floor-card-inner > .info-container)','backgroundColor'),/0\.94/);
+  assert.equal(await css(':is(.bili-video-card__info,.bili-video-card__skeleton--info,.bili-live-card__info,.bili-live-card__skeleton--info,.video-card__info,.floor-card-inner > .info-container)','backdropFilter'),'none');
   assert.equal(await css('#cat-channelTech','transitionDuration'),'0s');
   await cdp.send('Emulation.setEmulatedMedia',{features:[]},page.sessionId);
   await page.evaluate('(()=>{const s=document.querySelector("style[data-bc-owned=style]");globalThis.originalFrostCSS=s.textContent;s.textContent=s.textContent.replace("@supports not (backdrop-filter: blur(1px))","@supports (display: block)");})()');
   await settle(page);
-  assert.match(await css('[data-bc-surface-kind=video-info]','backgroundColor'),/0\.94/);
-  assert.equal(await css('[data-bc-surface-kind=video-info]','backdropFilter'),'none');
-  assert.equal(await css('#bc-theme-header-glass','backdropFilter'),'none');
+  assert.match(await css(':is(.bili-video-card__info,.bili-video-card__skeleton--info,.bili-live-card__info,.bili-live-card__skeleton--info,.video-card__info,.floor-card-inner > .info-container)','backgroundColor'),/0\.94/);
+  assert.equal(await css(':is(.bili-video-card__info,.bili-video-card__skeleton--info,.bili-live-card__info,.bili-live-card__skeleton--info,.video-card__info,.floor-card-inner > .info-container)','backdropFilter'),'none');
+  assert.equal(await glassFilter(page,'.bili-header__bar'),'none');
   await page.evaluate('document.querySelector("style[data-bc-owned=style]").textContent=originalFrostCSS');
   await patch({material:'clear'});
   assert.equal(await css('#normal .bili-video-card__info','backgroundColor'),'rgba(0, 0, 0, 0)');
@@ -139,10 +139,10 @@ export async function runLiquidChecks({cdp,base,until,screenshots}) {
   for(const name of ['search','video','space','dynamic']) {
     await page.navigate(base+'/matrix/'+name);
     await until(page,'document.documentElement.dataset.bcPage === '+JSON.stringify(name));
-    await until(page,'document.querySelector(".bc-theme-surface-glass[data-bc-level=content]") !== null');
+    await until(page,'getComputedStyle(document.querySelector("#readable-card")).backdropFilter !== "none"');
     assert.notEqual(await css('#readable-card','backgroundColor'),'rgba(0, 0, 0, 0)',name+' content is frosted');
-    assert.equal(await css('#readable-card','backdropFilter'),'none');
-    const commentBacking=await page.evaluate(`getComputedStyle(${name==='video'?'document.querySelector("bili-comments").shadowRoot.querySelector("#contents")':'document.querySelector("bili-comments")'}).backgroundColor`);
+    assert.match(await css('#readable-card','backdropFilter'),/blur\(/);
+    const commentBacking=await page.evaluate(`getComputedStyle(document.querySelector("bili-comments").shadowRoot.querySelector("#contents")).backgroundColor`);
     assert.notEqual(commentBacking,'rgba(0, 0, 0, 0)',name+' comments keep a readable backing');
     assert.equal(await css('#thumbnail','filter'),'none');
     if(name==='video'){

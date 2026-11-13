@@ -51,7 +51,7 @@ export async function runWatchRegressionChecks({cdp,base,until,screenshots,basel
   assert.notEqual(await css('.bpx-player-dm-wrap','backgroundColor'),transparent,'unwrapped danmaku list has its own backing');
   for(const width of [1024,1280,1440,1652,1920,2560]){
     await page.resize(width,1100);await settle(page);assert.notEqual(await css('.reply-list','backgroundColor'),transparent);
-    await page.evaluate('window.scrollTo(0,1500)');await settle(page);await settle(page);assert.ok(await page.evaluate('[...document.querySelectorAll(".bc-theme-surface-glass")].every(n=>n.getBoundingClientRect().height<=1100)'),'no giant comment blur layer');
+    await page.evaluate('window.scrollTo(0,1500)');await settle(page);await settle(page);assert.ok(await page.evaluate('document.querySelectorAll(".bc-theme-surface-glass").length===0'),'no giant comment blur layer');
   }
   await page.resize(1652,1100);await page.evaluate('window.scrollTo(0,1100)');await settle(page);await capture('variant-after-comments');
   await page.evaluate('document.querySelector("#commentapp").style.display="contents"');await settle(page);assert.notEqual(await css('.reply-list','backgroundColor'),transparent,'display-contents mount cannot remove the list backing');

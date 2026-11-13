@@ -21,6 +21,10 @@ export const selectors = {
 export const noFilters = {minimalistHideAds:false,minimalistHideBanner:false,minimalistHideCarousel:false,
   minimalistHideDecorations:false,minimalistToolbar:false,minimalistCompactCategories:false};
 export const settle = page => page.evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+// Positioned menu containers use a CSS-only background pseudo-element so their
+// overflowing descendants can still sample the page. Other panels blur directly.
+export const glassFilterExpression=selector=>`(()=>{const n=document.querySelector(${JSON.stringify(selector)}),p=getComputedStyle(n,'::before');return n.matches('.bili-header__bar,.v-popover-content')&&p.content!=='none'?p.backdropFilter:getComputedStyle(n).backdropFilter;})()`;
+export const glassFilter=(page,selector)=>page.evaluate(glassFilterExpression(selector));
 
 // Compare actual site rules and rectangles, never assumed Bilibili dimensions.
 export async function measure(page,{cardSpacing=true}={}) {
@@ -31,9 +35,9 @@ export async function measure(page,{cardSpacing=true}={}) {
     // row gaps and bounds are checked independently with the full CSS active.
     const margins=${cardSpacing}?[]:[...document.querySelectorAll('[data-bc-feed-margin]')].map(node=>[node,node.getAttribute('data-bc-feed-margin')]);
     for(const [node] of margins)node.removeAttribute('data-bc-feed-margin');
-    if(!${cardSpacing} && sheet)sheet.textContent=original.replace(BiliThemePage.homeCardSpacingCSS,'').replace(BiliThemePage.watchLayoutCSS,'');
+    if(!${cardSpacing} && sheet)sheet.textContent=original.replace(BiliThemePage.homeCardSpacingCSS,'').replace(BiliThemePage.watchLayoutCSS,'').replace(BiliThemePage.spaceLayoutCSS,'');
     try {
-    const properties='display position top right bottom left width height min-width max-width min-height max-height margin-top margin-right margin-bottom margin-left padding-top padding-right padding-bottom padding-left border-top-width border-right-width border-bottom-width border-left-width box-sizing gap row-gap column-gap grid-template-columns grid-template-rows grid-column-start grid-column-end grid-row-start grid-row-end grid-auto-flow flex-direction flex-wrap flex-grow flex-shrink flex-basis align-items align-self justify-content order aspect-ratio font-family font-size font-weight line-height letter-spacing white-space overflow overflow-x overflow-y visibility z-index transform filter backdrop-filter contain isolation'.split(' ');
+    const properties='display position top right bottom left width height min-width max-width min-height max-height margin-top margin-right margin-bottom margin-left padding-top padding-right padding-bottom padding-left border-top-width border-right-width border-bottom-width border-left-width box-sizing gap row-gap column-gap grid-template-columns grid-template-rows grid-column-start grid-column-end grid-row-start grid-row-end grid-auto-flow flex-direction flex-wrap flex-grow flex-shrink flex-basis align-items align-self justify-content order aspect-ratio font-family font-size font-weight line-height letter-spacing white-space overflow overflow-x overflow-y visibility z-index transform filter contain'.split(' ');
     const components={};
     for(const [name,selector] of Object.entries(${JSON.stringify(selectors)})) {
       components[name]=[...document.querySelectorAll(selector)].slice(0,12).map(n=>{
@@ -86,13 +90,26 @@ export async function assertVisualOnlyCSS(page) {
     const spacingRules=new Map([...spacing.cssRules].map(r=>[r.selectorText,r.style.cssText]));
     const watch=new CSSStyleSheet();watch.replaceSync(BiliThemePage.watchLayoutCSS);
     for(const r of watch.cssRules)spacingRules.set(r.selectorText,r.style.cssText);
+    const space=new CSSStyleSheet();space.replaceSync(BiliThemePage.spaceLayoutCSS);
+    for(const r of space.cssRules)spacingRules.set(r.selectorText,r.style.cssText);
+    const nativeGlass=new CSSStyleSheet();nativeGlass.replaceSync(BiliThemePage.nativeGlassCSS);
+    const nativeGlassPaint=new Set();
+    function collectNative(rules){for(const r of rules){
+      if(r.cssRules)collectNative(r.cssRules);
+      if(r.style)for(const p of r.style){
+        const backgroundPseudo=r.selectorText.endsWith('::before')&&['content','position','inset','top','right','bottom','left','z-index','pointer-events'].includes(p);
+        if(['backdrop-filter','-webkit-backdrop-filter'].includes(p)||backgroundPseudo||(p==='isolation'&&r.style[p]==='isolate'))nativeGlassPaint.add(r.selectorText+'|'+p+'|'+r.style.getPropertyValue(p));
+      }
+    }}
+    collectNative(nativeGlass.cssRules);
     function visit(rules){for(const r of rules){
       if(r.cssRules)visit(r.cssRules);
       if(!r.style)continue;
       if(spacingRules.get(r.selectorText)===r.style.cssText)continue;
       if(/#bc-theme-|\\.bc-theme-(popover|surface)-glass/.test(r.selectorText) && !r.selectorText.includes(' body '))continue;
       for(const p of r.style){
-        if(p.startsWith('--')||/^(background($|-)|color$|border-(color$|.+-color$|radius$|.+-radius$)|box-shadow$|text-shadow$|text-decoration($|-)|caret-color$|outline($|-)|opacity$|transition($|-))/.test(p))continue;
+        if(nativeGlassPaint.has(r.selectorText+'|'+p+'|'+r.style.getPropertyValue(p)))continue;
+        if(p.startsWith('--')||/^(background($|-)|color$|scrollbar-color$|border-(color$|.+-color$|radius$|.+-radius$)|box-shadow$|text-shadow$|text-decoration($|-)|caret-color$|outline($|-)|opacity$|transition($|-))/.test(p))continue;
         if(p==='display'&&r.style[p]==='none'&&/data-bc-(min-options|hidden|channel-layout)/.test(r.selectorText))continue;
         if(p==='visibility'&&r.style[p]==='hidden'&&r.selectorText.includes('data-bc-min-options'))continue;
         if(p==='fill'&&r.style[p]==='currentcolor'&&r.selectorText.startsWith('html[data-bc-enabled="true"][data-bc-page="video"] body :is(.video-toolbar-container, .video-toolbar) ')&&r.selectorText.endsWith(':is(svg, path)'))continue;
@@ -120,7 +137,7 @@ export async function assertVisualOnlyCSS(page) {
     for(const s of document.querySelectorAll('style[data-bc-owned="style"]'))visit(s.sheet.cssRules);
     return violations;
   })()`);
-  assert.deepEqual(violations,[],'theme CSS must contain only appearance, explicit hiding and the scoped homepage margin correction');
+  assert.deepEqual(violations,[],'theme CSS must contain only native glass/appearance, explicit hiding and documented scoped layout corrections');
 }
 
 export async function runParity({page,patch,artifacts,label='fixture',navKeys=[],continuous=true}) {
