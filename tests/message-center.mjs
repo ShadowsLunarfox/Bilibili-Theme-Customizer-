@@ -89,6 +89,8 @@ export async function runMessageCenterChecks({cdp,base,until,screenshots}){
   await page.evaluate('document.querySelector("#emoji").click();document.querySelector("#send").click()');assert.equal(await page.evaluate('messageActions.emoji'),1);assert.equal(await page.evaluate('messageActions.sends'),1,'local mock handler preserved');
   await page.evaluate('document.querySelector("#open-context").click()');await settle(page);await settle(page);assert.notEqual(await css('#context-menu','backgroundColor'),'rgb(238, 239, 241)','context menu gets overlay material');
   assert.match(await css('#context-menu','backdropFilter'),/blur\(/,'context menu owns its CSS glass');await noOverlays();
+  assert.equal(await css('#context-menu > div','backdropFilter'),'none','CSS-module option rows do not match the popup container prefix');
+  assert.equal(await css('#context-menu > div','backgroundColor'),'rgba(0, 0, 0, 0)','option rows share the popup backing');
   await page.evaluate('document.querySelector("#context-menu [tabindex]").click()');assert.equal(await page.evaluate('messageActions.menus'),1);await capture('message-conversation');
   // No account API: local solid wallpapers exercise actual composited ink.
   for(const [ink,wallpaper] of [['#ffffff',[255,255,255]],['#111111',[0,0,0]]]){

@@ -1,7 +1,8 @@
 /* Page classification and component-scoped CSS; no persistence or DOM writes. */
 (() => {
-  // CSS-module names retain these component prefixes across asset hash changes.
-  const messagePart=(...names)=>`:is(${names.flatMap(name=>[`[class^="_${name}_"]`,`[class*=" _${name}_"]`]).join(',')})`;
+  // CSS-module names retain these prefixes across asset hash changes. Exclude
+  // double-underscore child fields so rows/masks do not become extra panels.
+  const messagePart=(...names)=>`:is(${names.map(name=>`:is([class^="_${name}_"],[class*=" _${name}_"]):not([class^="_${name}__"],[class*=" _${name}__"])`).join(',')})`;
   const profiles = Object.freeze({
     home: {
       layout: ".bili-feed4, .bili-feed4-layout, .recommended-container_floor-aside, .bili-header__channel",
@@ -95,6 +96,9 @@
     .van-popup, .bui-dropdown-items, .bili-mini-content-wp, .ant-modal-content,
     .ant-popover-inner, .ant-dropdown-menu, .el-dialog, .el-popover, .el-dropdown-menu,
     html[data-bc-page="message"] ${messagePart('ContextMenu','Modal','SettingMenu','MsgNotify__MoreDropdown','MsgAppointment__Menu')}`;
+  // :has() cannot contain another :has(). Detect mounted menu descendants with
+  // the plain wrapper names, then keep the full registry for paint ownership.
+  const floatingDescendants=popovers.replace(/:not\(:has\([^)]*\)\)/g,'').replaceAll('html[data-bc-page="message"] ','');
   const comments = `.comment-container:not(:has(bili-comments)), #commentapp:not(:has(bili-comments)),
     #comment:not(:has(bili-comments)), .reply-warp:not(:has(bili-comments)),
     .reply-container:not(:has(bili-comments)), bili-comments`;
@@ -129,7 +133,11 @@
   const floating = popovers;
   // Native flyouts have their own positioned wrapper. They can extend beyond
   // a parent menu and need an independent backing, unlike its in-flow body.
-  const submenuSurfaces = '.v-popover .v-popover-content, .v-popover-content.sub-links-item, .vui_popover-content';
+  const submenuSurfaces = `.v-popover .v-popover-content, .v-popover-content.sub-links-item, .vui_popover-content,
+    [role="menu"], [role="listbox"], [role="tooltip"], [popover]:popover-open,
+    .bili-popover__content, .bili-header__popover-content, .van-popover, .bui-dropdown-items,
+    .ant-popover-inner, .ant-dropdown-menu, .el-popover, .el-dropdown-menu,
+    html[data-bc-page="message"] ${messagePart('ContextMenu','SettingMenu','MsgNotify__MoreDropdown','MsgAppointment__Menu')}`;
   const navigation='.bili-header__bar, .bili-header__channel, .header-channel, .search-header, .search-sticky-header, .search-tabs, .space-navbar, .bili-dyn-list-tabs';
   // These positioned native containers own overflowing menus. Frosting the
   // container itself creates a backdrop root that cuts off a child's blur.
@@ -564,19 +572,39 @@
   const nativeGlassCSS=Object.keys(profiles).map(name=>{
     const scope=`html[data-bc-enabled="true"][data-bc-page="${name}"][data-bc-material="glass"] body`;
     const groups=surfaceGroups(name),content=`:is(${groups.content}):not(bili-comments)`;
+    const nestedContent=`:where(${groups.light},${content},${groups.strong}) :where(${content})`;
+    const nestedBody=`:where(${groups.strong}) :where(${groups.strong}):not(:where(${submenuSurfaces}))`;
+    const menuAncestors=`:is(${groups.light},${content},${groups.strong}):has(:where(${floatingDescendants})):not(:where(${glassMenuContainers},${nestedContent},${nestedBody}))`;
     return Object.entries({content,light:groups.light,strong:groups.strong}).map(([level,targets])=>`
       ${scope} :where(${targets}) {
+        --bc-native-glass-filter: var(--bc-glass-filter${level==='light'?'':'-'+level});
         backdrop-filter: var(--bc-glass-filter${level==='light'?'':'-'+level});
         -webkit-backdrop-filter: var(--bc-glass-filter${level==='light'?'':'-'+level});
       }
     `).join('\n')+`
-      ${scope} :where(${groups.light},${content},${groups.strong}) :where(${content}),
-      ${scope} :where(${groups.strong}) :where(${groups.strong}):not(:where(${submenuSurfaces})) {
+      ${scope} ${nestedContent}, ${scope} ${nestedBody} {
         backdrop-filter: none; -webkit-backdrop-filter: none;
+      }
+      /* Only menu-bearing surfaces need to release their backdrop root. The
+         low-priority position fallback leaves native fixed/sticky/absolute
+         declarations in control. A background pseudo-element follows the
+         native box without DOM overlays or runtime geometry work. */
+      @layer bc-glass-containers {
+        ${scope} :where(${menuAncestors}) { position: relative; }
+      }
+      ${scope} :where(${menuAncestors}) {
+        isolation: isolate; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+      }
+      ${scope} :where(${menuAncestors})::after {
+        content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+        width: auto; height: auto; margin: 0; padding: 0; border-width: 0; border-style: none; border-radius: inherit;
+        background: none; transform: none;
+        backdrop-filter: var(--bc-native-glass-filter); -webkit-backdrop-filter: var(--bc-native-glass-filter);
       }
     `;
   }).join('\n')+`
     html[data-bc-enabled="true"][data-bc-page="home"][data-bc-material="glass"] body :is(${homeVideoInfo}) {
+      --bc-native-glass-filter: var(--bc-video-info-filter);
       backdrop-filter: var(--bc-video-info-filter); -webkit-backdrop-filter: var(--bc-video-info-filter);
     }
     html[data-bc-enabled="true"][data-bc-material="glass"] body :is(${glassMenuContainers}) {

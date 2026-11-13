@@ -4,7 +4,7 @@
 
 Every supported page uses CSS backdrop filters on its existing navigation, content panels, captions and menus. Open comment shadow roots receive CSS on their real block lists. The extension creates no header/channel/surface/popover glass elements, measures no glass rectangles, and has no glass scroll/resize/pointer observers or listeners. The wallpaper host remains the existing background/media container.
 
-`content.js` manages settings, wallpaper playback, page classification, explicit filters and comment styles. `theme.js` generates native glass rules and suppresses nested content frost. The header and native popover containers frost their static CSS background pseudo-element, leaving the container unfiltered so overflowing child menus can sample the page. No DOM glass nodes are created. Homepage captions paint within their padded information boxes; the existing category bar owns its material. Floating comment editors keep an unfiltered outer comment host so native fixed positioning remains intact. Native menus and dialogs continue to function.
+`content.js` manages settings, wallpaper playback, page classification, explicit filters and comment styles. `theme.js` generates native glass rules and suppresses nested content frost. The header, native popover containers and menu-bearing page panels frost static CSS background pseudo-elements, leaving those containers unfiltered so overflowing child menus can sample the page. Page panels use `::after` to retain native menu arrows on `::before`. A cascade-layer positioning fallback yields to authored fixed/sticky/absolute positions. No DOM glass nodes are created. Homepage captions paint within their padded information boxes; the existing category bar owns its material. Floating comment editors keep an unfiltered outer comment host so native fixed positioning remains intact. Native menus and dialogs continue to function.
 
 Saved wallpaper/media, opacity, blur, accent, text color, navigation choices and filter preferences are preserved. Clear removes the extension frost/tint; disabling restores the site's styles. Reduced-transparency and unsupported-backdrop modes use the shared stronger tint fallback. The independent feed-margin correction and card stretching remain in place.
 
@@ -36,6 +36,7 @@ Targeted checks:
 | `BC_TEST_MESSAGE_CENTER=1` | Inbox/chat/notifications/settings, rich text, editor drafts, native menus and zero overlay elements |
 | `BC_TEST_SUBPAGE_MENUS=1` | Profile/services/theme, messages, favorites, history, upload, search, nested/portaled menus and interactions |
 | `BC_TEST_GLASS_CONSISTENCY=1` | Rendered checkerboard frost under the header, profile, submenu and manga menu; zero blur, reduced transparency, Clear and restoration |
+| `BC_TEST_CROSS_PAGE_GLASS=1` | Rendered panel/menu/submenu frost on all eleven page types; one tint, native arrows, anchored menus, fixed coordinates, authored fixed/sticky positioning, interactions, Clear and restoration |
 
 Example:
 

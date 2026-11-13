@@ -29,6 +29,7 @@ import {runWatchCommentChecks} from './watch-comments.mjs';
 import {spacePageFixture,runSpacePageChecks} from './space-page.mjs';
 import {messageCenterFixture,runMessageCenterChecks} from './message-center.mjs';
 import {runGlassConsistencyChecks} from './glass-consistency.mjs';
+import {crossPageGlassFixture,runCrossPageGlassChecks} from './cross-page-glass.mjs';
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const browserExtraArgs = process.env.BC_TEST_NO_SANDBOX === "1" ? ["--no-sandbox"] : [];
@@ -51,6 +52,7 @@ const spacePageMode = process.env.BC_TEST_SPACE_PAGE;
 const messageCenterMode = process.env.BC_TEST_MESSAGE_CENTER;
 const nativeGlassMode = process.env.BC_TEST_NATIVE_GLASS;
 const glassConsistencyMode = process.env.BC_TEST_GLASS_CONSISTENCY;
+const crossPageGlassMode = process.env.BC_TEST_CROSS_PAGE_GLASS;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8"));
 const bridge = `
@@ -234,6 +236,8 @@ async function runBrowser(executable) {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(fixture(rt.BC));
       } else if (path.startsWith("/matrix/")) {
         response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(compatibilityFixture(path.slice(8)));
+      } else if (path.startsWith("/page-glass/")) {
+        response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(crossPageGlassFixture(path.slice(12)));
       } else if (path === "/bridge.js") {
         response.setHeader("Content-Type", "text/javascript; charset=utf-8"); response.end(bridge);
       } else {
@@ -283,6 +287,7 @@ async function runBrowser(executable) {
     if(messageCenterMode){await runMessageCenterChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(nativeGlassMode){await runLiquidChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(glassConsistencyMode){await runGlassConsistencyChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
+    if(crossPageGlassMode){await runCrossPageGlassChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(watchAdsMode){await runWatchAdChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(subpageMenusMode){await runSubpageMenuChecks({cdp,base,until,screenshots:screenshotDirectory});return;}
     if(filteredLayoutMode){
@@ -452,6 +457,7 @@ async function runBrowser(executable) {
     await runWatchAdChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runSubpageMenuChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runGlassConsistencyChecks({cdp,base,until,screenshots:screenshotDirectory});
+    await runCrossPageGlassChecks({cdp,base,until,screenshots:screenshotDirectory});
     await runMinimalistChecks({ cdp, base, until, screenshots: screenshotDirectory, mp4: recordedMP4 });
     await runReferenceChecks({ cdp, base, until, screenshots: screenshotDirectory });
     await runCompatibilityMatrix({ cdp, base, until, mp4: recordedMP4,

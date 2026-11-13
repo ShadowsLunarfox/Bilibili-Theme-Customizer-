@@ -23,7 +23,7 @@ export const noFilters = {minimalistHideAds:false,minimalistHideBanner:false,min
 export const settle = page => page.evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
 // Positioned menu containers use a CSS-only background pseudo-element so their
 // overflowing descendants can still sample the page. Other panels blur directly.
-export const glassFilterExpression=selector=>`(()=>{const n=document.querySelector(${JSON.stringify(selector)}),p=getComputedStyle(n,'::before');return n.matches('.bili-header__bar,.v-popover-content')&&p.content!=='none'?p.backdropFilter:getComputedStyle(n).backdropFilter;})()`;
+export const glassFilterExpression=selector=>`(()=>{const n=document.querySelector(${JSON.stringify(selector)}),s=getComputedStyle(n);for(const p of ['::before','::after']){const c=getComputedStyle(n,p);if(c.content!=='none'&&c.backdropFilter!=='none')return c.backdropFilter;}return s.backdropFilter;})()`;
 export const glassFilter=(page,selector)=>page.evaluate(glassFilterExpression(selector));
 
 // Compare actual site rules and rectangles, never assumed Bilibili dimensions.
@@ -97,8 +97,8 @@ export async function assertVisualOnlyCSS(page) {
     function collectNative(rules){for(const r of rules){
       if(r.cssRules)collectNative(r.cssRules);
       if(r.style)for(const p of r.style){
-        const backgroundPseudo=r.selectorText.endsWith('::before')&&['content','position','inset','top','right','bottom','left','z-index','pointer-events'].includes(p);
-        if(['backdrop-filter','-webkit-backdrop-filter'].includes(p)||backgroundPseudo||(p==='isolation'&&r.style[p]==='isolate'))nativeGlassPaint.add(r.selectorText+'|'+p+'|'+r.style.getPropertyValue(p));
+        const backgroundPseudo=/::(?:before|after)$/.test(r.selectorText)&&['content','position','inset','top','right','bottom','left','z-index','pointer-events','width','height','margin-top','margin-right','margin-bottom','margin-left','padding-top','padding-right','padding-bottom','padding-left','border-top-width','border-right-width','border-bottom-width','border-left-width','border-top-style','border-right-style','border-bottom-style','border-left-style','transform'].includes(p);
+        if(['backdrop-filter','-webkit-backdrop-filter'].includes(p)||backgroundPseudo||(p==='isolation'&&r.style[p]==='isolate')||(p==='position'&&r.style[p]==='relative'))nativeGlassPaint.add(r.selectorText+'|'+p+'|'+r.style.getPropertyValue(p));
       }
     }}
     collectNative(nativeGlass.cssRules);
